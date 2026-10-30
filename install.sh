@@ -19,6 +19,8 @@ fi
 set -e
 set -o pipefail  # Exit on pipe failures
 
+FORCE_YES="${FORCE_YES:-false}"
+
 # --- [COLORS] ---
 # Check if terminal supports colors
 if [[ -t 1 ]] && command -v tput >/dev/null && tput colors >/dev/null 2>&1 && [[ $(tput colors) -ge 8 ]]; then
@@ -255,12 +257,16 @@ install_dotfiles() {
 
     # --- User Confirmation ---
     if [[ "${DRY_RUN:-false}" != "true" ]]; then
-        print_warning "This script will back up and replace existing dotfiles in your home directory."
-        read -p "Do you want to proceed with the installation? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "Installation cancelled."
-            exit 1
+        if [[ "${FORCE_YES:-false}" == "true" ]]; then
+            print_info "Automated run: Proceeding with installation (--yes specified)."
+        else
+            print_warning "This script will back up and replace existing dotfiles in your home directory."
+            read -p "Do you want to proceed with the installation? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                print_error "Installation cancelled."
+                exit 1
+            fi
         fi
     else
         echo "=== Skipping user confirmation in dry-run mode ==="
@@ -438,6 +444,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                 INSTALL_DEPS=true
                 shift
                 ;;
+            --yes|-y)
+                FORCE_YES=true
+                shift
+                ;;
             --help|-h)
                 echo "Usage: $0 [OPTIONS]"
                 echo "Install Felis-Shell dotfiles."
@@ -445,6 +455,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                 echo "Options:"
                 echo "  -n, --dry-run     Show what would be done without making changes"
                 echo "  -d, --debug       Show debug information during installation"
+                echo "  -y, --yes         Proceed with installation without prompting"
                 echo "  --install-deps    Install system dependencies (requires sudo)"
                 echo "  -h, --help        Show this help message"
                 exit 0

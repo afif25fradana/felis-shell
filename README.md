@@ -1,5 +1,7 @@
 # Felis Shell
 
+[![CI](https://github.com/afif25fradana/felis-shell/actions/workflows/ci.yml/badge.svg)](https://github.com/afif25fradana/felis-shell/actions/workflows/ci.yml)
+
 A modular Bash configuration framework providing structured aliases, git-aware prompt status, platform detection (WSL2 / Linux), and developer workflow helpers.
 
 > [!NOTE]

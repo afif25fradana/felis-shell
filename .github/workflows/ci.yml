@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: |
+          echo "Running ShellCheck on shell scripts..."
+          shellcheck --version
+          find . -type f \( -name "*.sh" -o -name ".bashrc" \) -not -path "*/.git/*" -exec shellcheck {} +
+
+      - name: Check Bash Syntax (bash -n)
+        run: |
+          echo "Verifying script syntax with bash -n..."
+          find . -type f \( -name "*.sh" -o -name ".bashrc" \) -not -path "*/.git/*" -exec bash -n {} +
+
+  test:
+    name: Dotfiles Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Built-in Test Suite
+        run: |
+          chmod +x test_dotfiles.sh
+          ./test_dotfiles.sh -v
+
+  install-test:
+    name: End-to-End Installation Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test Installer Dry-Run
+        run: |
+          chmod +x install.sh
+          ./install.sh --dry-run
+
+      - name: Test Live Installation
+        run: |
+          ./install.sh --yes
+
+      - name: Verify Symlinks in Home Directory
+        run: |
+          test -L "$HOME/.bashrc"
+          test -L "$HOME/.bashrc.d"
+          test -d "$HOME/.config"
+          echo "Symlinks verified successfully."
+
+      - name: Verify Interactive Login Shell Sourcing
+        run: |
+          echo "Testing shell startup with ~/.bashrc..."
+          bash -l -c "exit 0"
+
+      - name: Test Installation Idempotency (Re-run)
+        run: |
+          echo "Testing re-run of installer on existing symlinks..."
+          ./install.sh --yes
