@@ -409,7 +409,8 @@ install_dotfiles() {
         echo -e "  ${NC}# Note: ngrok is not available in the official repositories. Install from AUR or the ngrok website.${NC}"
         echo
         echo -e "  ${BLUE}Ubuntu/Debian:${NC}"
-        echo -e "  ${NC}sudo apt install eza bat fd-find ripgrep fzf zoxide btop fastfetch chafa shellcheck jq unzip unrar p7zip-full cowsay fortune-mod docker.io docker-compose-plugin bzip2 gzip ncompress xz-utils cabextract gh curl netcat-openbsd${NC}"
+        echo -e "  ${NC}sudo apt install bat fd-find ripgrep fzf zoxide btop chafa shellcheck jq unzip unrar p7zip-full cowsay fortune-mod docker.io docker-compose-plugin bzip2 gzip ncompress xz-utils cabextract gh curl netcat-openbsd${NC}"
+        echo -e "  ${NC}# Note: eza and fastfetch are installed automatically when using: ./install.sh --install-deps${NC}"
         echo -e "  ${NC}# Note: Enable and start the docker service with: sudo systemctl enable --now docker${NC}"
         echo -e "  ${NC}# Note: ngrok is not available in the official repositories. Install from the ngrok website.${NC}"
         echo

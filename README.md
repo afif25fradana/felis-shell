@@ -118,7 +118,8 @@ To remove Felis Shell symlinks and restore your previous configuration:
 # Remove managed symlinks
 rm ~/.bashrc ~/.bashrc.d ~/.local/bin/random-fastfetch.sh
 
-# Restore original backup
-cp $(ls -t ~/.bashrc.backup.* | head -1) ~/.bashrc
+# Restore latest backup (if available)
+latest_backup=$(ls -t ~/.bashrc.backup.* 2>/dev/null | head -1)
+[[ -n "$latest_backup" ]] && cp "$latest_backup" ~/.bashrc
 source ~/.bashrc
 ```

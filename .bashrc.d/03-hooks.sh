@@ -164,7 +164,7 @@ _fs_auto_activate_venv() {
 # Function to show directory contents after cd
 _fs_cd_show_contents() {
     # Skip auto-preview on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
-    if [[ "$PWD" == /mnt/* ]]; then
+    if [[ "$PWD" == /mnt || "$PWD" == /mnt/* ]]; then
         return 0
     fi
 
