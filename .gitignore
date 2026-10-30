@@ -2,6 +2,7 @@
 
 # Test directory
 test/
+.agents/
 
 # Exception for random-fastfetch.sh
 !.local/bin/random-fastfetch.sh

@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/system.sh - System Maintenance Functions
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- System Maintenance Functions ---
 
 # Performs comprehensive system cleanup across multiple distributions.
@@ -67,17 +64,17 @@ sysclean() {
 
         print_info "Removing orphan packages..."
         local orphans
-        if orphans=$(pacman -Qtdq 2>/dev/null); then
-            if [[ -n "$orphans" ]]; then
-                if echo "$orphans" | run_cmd "sudo pacman -Rns --noconfirm -" "orphan package removal"; then
-                    print_success "Removed orphan packages"
-                fi
+        orphans=$(pacman -Qtdq 2>/dev/null) || true
+        if [[ -n "$orphans" ]]; then
+            if echo "$orphans" | xargs -r sudo pacman -Rns --noconfirm; then
+                print_success "Removed orphan packages"
+                has_performed_action=true
             else
-                print_info "No orphan packages found"
+                print_error "Failed to remove orphan packages"
+                has_error=true
             fi
         else
-            print_error "Failed to check for orphan packages"
-            has_error=true
+            print_info "No orphan packages found"
         fi
 
         # Clean AUR helper cache if available

@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/dotfiles.sh - Dotfiles Management
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- Dotfiles Management ---
 
 # Manages the backup and restoration of dotfiles, simplifying the process of saving and
@@ -45,18 +42,12 @@ dotfiles() {
             [[ -f ~/.inputrc ]] && cp ~/.inputrc "$dotfiles_dir/"
             [[ -f ~/.editorconfig ]] && cp ~/.editorconfig "$dotfiles_dir/"
             
-            # Backup bashrc.d directory (excluding QWEN.md)
+            # Backup bashrc.d directory
             mkdir -p "$dotfiles_dir/.bashrc.d"
             for file in ~/.bashrc.d/*; do
+                local filename
                 filename=$(basename "$file")
-                # Skip QWEN.md as it's session context only
-                if [[ "$filename" != "QWEN.md" ]]; then
-                    if [[ -d "$file" ]]; then
-                        cp -r "$file" "$dotfiles_dir/.bashrc.d/"
-                    else
-                        cp "$file" "$dotfiles_dir/.bashrc.d/"
-                    fi
-                fi
+                cp -r "$file" "$dotfiles_dir/.bashrc.d/"
             done
             
             # Backup .config directory (only specific configs)

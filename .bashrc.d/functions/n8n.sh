@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/n8n.sh - n8n & Ngrok Workflow
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- n8n Workflow Functions ---
 # Start n8n services
 start-n8n() {

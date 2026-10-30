@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # Clones a Git repository and automatically changes the current directory to the newly cloned folder.
 #
 # This function simplifies the process of cloning a repository and immediately navigating into it,

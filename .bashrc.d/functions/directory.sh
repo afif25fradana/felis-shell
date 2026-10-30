@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/directory.sh - Directory Functions
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- Enhanced Directory Functions ---
 
 # Creates a new directory and immediately changes the current working directory to it.

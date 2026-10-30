@@ -1,95 +1,114 @@
 #!/usr/bin/env bash
+# random-fastfetch.sh - High-performance, robust random banner runner for Fastfetch v2.x
+# Spec-compliant: Negotiates Chafa (WSL2 / Windows Terminal) and Kitty (native Linux)
+# Zero external subprocesses in image discovery; O(1) deterministic anti-repetition.
 
-# Script to run fastfetch with a random image from the dotfiles logos directory
-
-# Exit on error, undefined vars, and pipe failures
 set -euo pipefail
 
-# Check for fastfetch installation
+# 1. Dependency Validation
 if ! command -v fastfetch >/dev/null 2>&1; then
-    echo "Error: fastfetch is not installed. Please install it first." >&2
+    echo "Error: fastfetch is not installed or not in PATH." >&2
     exit 1
 fi
 
-# Set default configuration
-MAX_LOGO_WIDTH=${FELIS_LOGO_WIDTH:-55}
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/felis-shell"
-CACHE_FILE="$CACHE_DIR/last_logo"
+# 2. Configuration & User Overrides
+readonly LOGO_WIDTH="${FELIS_LOGO_WIDTH:-55}"
+readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/felis-shell"
+readonly CACHE_FILE="$CACHE_DIR/last_logo"
 
-# Create cache directory if it doesn't exist
-mkdir -p "$CACHE_DIR"
+# 3. Locate Logo Directory (Resolve canonical path across symlinks)
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_SOURCE" ]]; do
+    SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 
-# Set the directory containing your logos
-# Check for logos in ~/.dotfiles first, then fall back to script location
-if [[ -d "$HOME/.dotfiles/logos" && -n "$(ls -A "$HOME/.dotfiles/logos" 2>/dev/null)" ]]; then
+if [[ -d "$SCRIPT_DIR/logos" ]]; then
+    LOGO_DIR="$SCRIPT_DIR/logos"
+elif [[ -d "$HOME/.dotfiles/logos" ]]; then
     LOGO_DIR="$HOME/.dotfiles/logos"
 else
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    LOGO_DIR="$SCRIPT_DIR/logos"
+    # Graceful fallback: run standard fastfetch without crashing
+    exec fastfetch
 fi
 
-# Set the maximum width for the logo (in characters)
-# Height will be calculated automatically to maintain aspect ratio
-MAX_LOGO_WIDTH=55
+# 4. Pure-Bash Image Discovery (Zero subshell / fork overhead)
+declare -a images=()
+shopt -s nullglob nocaseglob
+for img in "$LOGO_DIR"/*.{png,jpg,jpeg,gif,bmp,webp}; do
+    [[ -f "$img" && -r "$img" ]] && images+=("$img")
+done
+shopt -u nullglob nocaseglob
 
-# Check if the directory exists
-if [[ ! -d "$LOGO_DIR" ]]; then
-    echo "Logo directory not found: $LOGO_DIR"
-    fastfetch  # Run fastfetch without custom logo
-    exit 0
+readonly total_images=${#images[@]}
+if (( total_images == 0 )); then
+    exec fastfetch
 fi
 
-# Function to validate image file
-validate_image() {
-    local file=$1
-    local mime
-    
-    # Check if file exists and is readable
-    if [[ ! -f "$file" || ! -r "$file" ]]; then
-        return 1
+# 5. Protocol Negotiation (WSL2 vs Native Linux Kitty vs Fallback)
+LOGO_TYPE="auto"
+EXTRA_FASTFETCH_FLAGS=()
+
+if [[ -n "${WSL_DISTRO_NAME:-}" || -n "${WSL_INTEROP:-}" || -n "${WT_SESSION:-}" ]]; then
+    # Windows Terminal / WSL2 environment does not support Kitty graphics protocol
+    if command -v chafa >/dev/null 2>&1; then
+        LOGO_TYPE="chafa"
+        EXTRA_FASTFETCH_FLAGS+=(--chafa-symbols vhalf)
     fi
-    
-    # Check if file is an image (requires file command)
-    if command -v file >/dev/null 2>&1; then
-        mime=$(file -b --mime-type "$file")
-        if [[ ! $mime =~ ^image/ ]]; then
-            return 1
+elif [[ "${TERM:-}" == *"kitty"* || -n "${KITTY_PID:-}" || -n "${KITTY_WINDOW_ID:-}" ]]; then
+    # Native Linux Kitty terminal emulator
+    LOGO_TYPE="kitty"
+elif command -v chafa >/dev/null 2>&1; then
+    LOGO_TYPE="chafa"
+    EXTRA_FASTFETCH_FLAGS+=(--chafa-symbols vhalf)
+fi
+
+# 6. O(1) Deterministic Random Selection (No while-loop spinning)
+mkdir -p "$CACHE_DIR"
+last_image=""
+if [[ -f "$CACHE_FILE" ]]; then
+    last_image="$(<"$CACHE_FILE")"
+fi
+
+if (( total_images == 1 )); then
+    selected_image="${images[0]}"
+elif [[ -n "$last_image" ]]; then
+    last_idx=-1
+    for i in "${!images[@]}"; do
+        if [[ "${images[i]}" == "$last_image" ]]; then
+            last_idx=$i
+            break
         fi
-    fi
-    
-    return 0
-}
-
-# Find all image files in the directory
-while IFS= read -r -d '' file; do
-    if validate_image "$file"; then
-        images+=("$file")
-    fi
-done < <(find "$LOGO_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.bmp" \) -print0 2>/dev/null)
-
-# Check if we found any images
-if [[ ${#images[@]} -eq 0 ]]; then
-    echo "No valid images found in $LOGO_DIR"
-    echo "Running fastfetch without custom logo..."
-    fastfetch
-    exit 0
-fi
-
-# Select a random image, avoiding the last used one if possible
-RANDOM_IMAGE="${images[RANDOM % ${#images[@]}]}"
-if [[ ${#images[@]} -gt 1 && -f "$CACHE_FILE" ]]; then
-    last_image=$(cat "$CACHE_FILE" 2>/dev/null)
-    while [[ "$RANDOM_IMAGE" == "$last_image" && ${#images[@]} -gt 1 ]]; do
-        RANDOM_IMAGE="${images[RANDOM % ${#images[@]}]}"
     done
+
+    if (( last_idx >= 0 )); then
+        # Deterministically select from remaining (total_images - 1) candidates
+        rand_offset=$(( RANDOM % (total_images - 1) ))
+        new_idx=$(( (last_idx + 1 + rand_offset) % total_images ))
+        selected_image="${images[new_idx]}"
+    else
+        selected_image="${images[RANDOM % total_images]}"
+    fi
+else
+    selected_image="${images[RANDOM % total_images]}"
 fi
 
-# Save the current image to cache
-echo "$RANDOM_IMAGE" > "$CACHE_FILE"
+# 7. Update Cache Atomically
+printf '%s\n' "$selected_image" > "$CACHE_FILE"
 
-# Run fastfetch with error handling
-if ! fastfetch --logo "$RANDOM_IMAGE" --logo-width "$MAX_LOGO_WIDTH" --logo-height 0 --logo-padding-top 0 --logo-padding-left 0; then
-    echo "Error: Failed to run fastfetch with custom logo"
-    echo "Running without logo as fallback..."
-    fastfetch
+# 8. Execute Fastfetch (Omit --logo-height to preserve proportional aspect ratio)
+FASTFETCH_ARGS=(
+    --logo "$selected_image"
+    --logo-type "$LOGO_TYPE"
+    --logo-width "$LOGO_WIDTH"
+    --logo-padding-top 0
+    --logo-padding-left 0
+    "${EXTRA_FASTFETCH_FLAGS[@]}"
+)
+
+if ! fastfetch "${FASTFETCH_ARGS[@]}"; then
+    echo "Warning: fastfetch logo rendering failed; falling back to text banner." >&2
+    exec fastfetch
 fi

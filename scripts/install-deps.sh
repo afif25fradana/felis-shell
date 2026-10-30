@@ -36,7 +36,7 @@ install_ubuntu() {
 
     print_info "Installing modern CLI tools..."
     # Install available via apt
-    sudo apt install -y bat fd-find ripgrep fzf zoxide btop kitty shellcheck gh python3 python3-pip cowsay fortune-mod
+    sudo apt install -y bat fd-find ripgrep fzf zoxide btop chafa kitty shellcheck gh python3 python3-pip cowsay fortune-mod
 
     # Setup symlinks for bat and fd
     mkdir -p "$HOME/.local/bin"
@@ -64,10 +64,17 @@ install_ubuntu() {
 
 install_arch() {
     print_info "Installing dependencies for Arch Linux..."
-    sudo pacman -S --needed --noconfirm git bash curl wget jq unzip p7zip bzip2 gzip xz file psmisc \
+    local terminal_pkg="kitty"
+    if [[ -n "$WSL_DISTRO_NAME" ]]; then
+        print_info "WSL environment detected: skipping GUI terminal (kitty)"
+        terminal_pkg=""
+    fi
+
+    # Note: 7zip replaces legacy p7zip, github-cli provides gh binary
+    sudo pacman -S --needed --noconfirm git bash curl wget jq unzip 7zip bzip2 gzip xz file psmisc \
                                         iproute2 net-tools openbsd-netcat ncurses htop \
-                                        eza bat fd ripgrep fzf zoxide btop kitty fastfetch \
-                                        shellcheck gh python python-pip cowsay fortune-mod
+                                        eza bat fd ripgrep fzf zoxide btop fastfetch chafa \
+                                        shellcheck github-cli python python-pip cowsay fortune-mod $terminal_pkg
 }
 
 case "$OS" in

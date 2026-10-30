@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # Creates a new project with the appropriate structure and initialization based on project type.
 #
 # This function streamlines the process of starting new projects by automatically creating

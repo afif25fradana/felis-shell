@@ -532,6 +532,10 @@ test_integration() {
         # Process each file
         for module in "${files_array[@]}"; do
             if [[ -f "$module" ]] && [[ "$module" == *.sh ]]; then
+                # Skip standalone executable scripts from direct sourcing test
+                if [[ "$module" == "random-fastfetch.sh" || "$module" == "install.sh" || "$module" == "scripts/"* ]]; then
+                    continue
+                fi
                 print_debug "Testing sourcing of: $module"
                 if bash -c "source "$module" && echo 'SUCCESS' || echo 'FAILED'" 2>/dev/null | grep -q "SUCCESS"; then
                     print_success "Successfully sourced $module"

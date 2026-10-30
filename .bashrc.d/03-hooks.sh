@@ -163,6 +163,11 @@ _fs_auto_activate_venv() {
 
 # Function to show directory contents after cd
 _fs_cd_show_contents() {
+    # Skip auto-preview on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
+    if [[ "$PWD" == /mnt/* ]]; then
+        return 0
+    fi
+
     # Debug output
     if [[ "${FELIS_SHELL_DEBUG}" == "true" ]]; then
         echo "Debug: _fs_cd_show_contents called" >&2
@@ -263,26 +268,27 @@ if command -v zoxide >/dev/null; then
 fi
 
 # Directory History
-# Keep track of directory history for quick navigation
-DIRSTACK_SIZE=20
-declare -a DIRSTACK
+# Keep track of directory history for quick navigation (using custom stack to avoid clobbering bash DIRSTACK)
+_FS_DIRSTACK_SIZE=20
+declare -a _FS_DIRSTACK=()
 
 push_dir() {
     local dir="$PWD"
-    # Remove duplicates
-    DIRSTACK=("${DIRSTACK[@]/$dir}")
-    # Add to front
-    DIRSTACK=("$dir" "${DIRSTACK[@]}")
-    # Trim to size
-    DIRSTACK=("${DIRSTACK[@]:0:$DIRSTACK_SIZE}")
+    local -a filtered=()
+    for d in "${_FS_DIRSTACK[@]}"; do
+        [[ "$d" != "$dir" ]] && filtered+=("$d")
+    done
+    _FS_DIRSTACK=("$dir" "${filtered[@]}")
+    _FS_DIRSTACK=("${_FS_DIRSTACK[@]:0:$_FS_DIRSTACK_SIZE}")
 }
 
-# Add to PROMPT_COMMAND
-if [[ "$PROMPT_COMMAND" == *"build_prompt"* ]]; then
-    PROMPT_COMMAND="push_dir; $PROMPT_COMMAND"
-else
-    PROMPT_COMMAND="push_dir; ${PROMPT_COMMAND}"
-fi
+# Preserve exit status by capturing $? prior to running helper hooks
+_fs_prompt_hook() {
+    local last_exit=$?
+    push_dir
+    build_prompt "$last_exit"
+}
+PROMPT_COMMAND="_fs_prompt_hook"
 
 # Shell Options
 # Better history handling

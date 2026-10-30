@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # Enhanced Shortcut Display
 shortcut() {
     echo -e "\n${C_BOLD}${C_YELLOW}🚀 My Personal Command Shortcuts${C_RESET}\n"

@@ -4,6 +4,11 @@
 if [[ -n "$WSL_DISTRO_NAME" ]]; then
     export BASHRC_ENV="wsl"
     alias open='explorer.exe'
+    if command -v wslview >/dev/null; then
+        export BROWSER="${BROWSER:-wslview}"
+    else
+        export BROWSER="${BROWSER:-explorer.exe}"
+    fi
 elif [[ "$XDG_CURRENT_DESKTOP" == "Hyprland" ]]; then
     export BASHRC_ENV="hyprland"
 elif [[ -n "$SSH_CLIENT" ]]; then
@@ -136,7 +141,11 @@ else
     alias myipaddr="ifconfig | grep -oP 'inet \K[\d.]+' | grep -v '127.0.0.1'"
 fi
 
-alias ports='netstat -tulanp'
+if command -v ss >/dev/null; then
+    alias ports='ss -tulpn'
+else
+    alias ports='netstat -tulanp'
+fi
 alias ping='ping -c 5'
 
 # Development

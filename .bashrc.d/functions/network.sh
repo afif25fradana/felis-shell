@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/network.sh - Network Functions
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- Network Functions ---
 
 # Displays comprehensive network information including local and public IP addresses.

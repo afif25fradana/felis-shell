@@ -297,6 +297,13 @@ install_dotfiles() {
     # Install root-level dotfiles
     for file in .bashrc .gitconfig .inputrc .editorconfig; do
         if [[ -f "$repo_root/$file" ]]; then
+            # Protect existing personal .gitconfig from being replaced with repo template
+            if [[ "$file" == ".gitconfig" && -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" ]]; then
+                if git config -f "$HOME/.gitconfig" --get user.email >/dev/null 2>&1; then
+                    print_info "Preserving existing personal git config ($HOME/.gitconfig)"
+                    continue
+                fi
+            fi
             backup_file "$file"
             install_dotfile "$repo_root/$file" "$HOME/$file"
         fi
@@ -397,12 +404,12 @@ install_dotfiles() {
         echo
         echo -e "  ${YELLOW}Package Installation Commands by Distribution:${NC}"
         echo -e "  ${BLUE}Arch Linux:${NC}"
-        echo -e "  ${NC}sudo pacman -S eza bat fd ripgrep fzf zoxide btop kitty fastfetch shellcheck jq unzip unrar p7zip cowsay fortune-mod docker bzip2 gzip ncompress xz cabextract gh curl openbsd-netcat${NC}"
+        echo -e "  ${NC}sudo pacman -S eza bat fd ripgrep fzf zoxide btop fastfetch chafa shellcheck jq unzip unrar 7zip cowsay fortune-mod docker bzip2 gzip ncompress xz cabextract github-cli curl openbsd-netcat${NC}"
         echo -e "  ${NC}# Note: Enable and start the docker service with: sudo systemctl enable --now docker${NC}"
         echo -e "  ${NC}# Note: ngrok is not available in the official repositories. Install from AUR or the ngrok website.${NC}"
         echo
         echo -e "  ${BLUE}Ubuntu/Debian:${NC}"
-        echo -e "  ${NC}sudo apt install eza bat fd-find ripgrep fzf zoxide btop kitty fastfetch shellcheck jq unzip unrar p7zip-full cowsay fortune docker.io docker-compose-plugin bzip2 gzip ncompress xz-utils cabextract gh curl netcat-openbsd${NC}"
+        echo -e "  ${NC}sudo apt install eza bat fd-find ripgrep fzf zoxide btop fastfetch chafa shellcheck jq unzip unrar p7zip-full cowsay fortune-mod docker.io docker-compose-plugin bzip2 gzip ncompress xz-utils cabextract gh curl netcat-openbsd${NC}"
         echo -e "  ${NC}# Note: Enable and start the docker service with: sudo systemctl enable --now docker${NC}"
         echo -e "  ${NC}# Note: ngrok is not available in the official repositories. Install from the ngrok website.${NC}"
         echo

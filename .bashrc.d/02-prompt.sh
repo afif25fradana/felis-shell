@@ -3,6 +3,7 @@
 # Configuration
 PROMPT_GIT_CACHE_TIMEOUT=5  # Cache git status for 5 seconds
 PROMPT_CACHE_DIR="${BASHRC_CACHE_DIR:-$HOME/.cache/bashrc}"
+mkdir -p "$PROMPT_CACHE_DIR"
 
 # Git Status Cache Function
 _fs_get_git_status_cached() {
@@ -40,7 +41,7 @@ _fs_get_git_status_cached() {
 
         # Choose symbol
         symbol="git"
-        [[ "$USE_NERD_FONT" = true ]] && symbol=""
+        [[ "$USE_NERD_FONT" = true ]] && symbol=" "
 
         # Check for changes (dirty repo)
         if [[ $(echo "$git_output" | wc -l) -gt 1 ]]; then
@@ -68,7 +69,7 @@ _fs_get_git_status_cached() {
 
 # Build Prompt Function
 build_prompt() {
-    local exit_code=$?
+    local exit_code="${1:-$?}"
 
     # Prompt colors (with proper bash escaping)
     local P_RESET="\[${C_RESET}\]"
@@ -109,8 +110,8 @@ build_prompt() {
         local venv_name
         venv_name=$(basename "$VIRTUAL_ENV")
         local symbol="py"
-        [[ "$USE_NERD_FONT" = true ]] && symbol=""
-        venv_info=" ${P_YELLOW}${symbol} ${venv_name}${P_RESET}"
+        [[ "$USE_NERD_FONT" = true ]] && symbol="󰌠 "
+        venv_info=" ${P_YELLOW}${symbol}${venv_name}${P_RESET}"
     fi
 
     # Node.js Version (if in Node project)
@@ -120,8 +121,8 @@ build_prompt() {
         node_version=$(node --version 2>/dev/null)
         if [[ -n "$node_version" ]]; then
             local symbol="js"
-            [[ "$USE_NERD_FONT" = true ]] && symbol=""
-            node_info=" ${P_GREEN}${symbol} ${node_version#v}${P_RESET}"
+            [[ "$USE_NERD_FONT" = true ]] && symbol="󰌞 "
+            node_info=" ${P_GREEN}${symbol}${node_version#v}${P_RESET}"
         fi
     fi
 
@@ -141,8 +142,8 @@ build_prompt() {
     local ssh_info=""
     if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]]; then
         local symbol="ssh"
-        [[ "$USE_NERD_FONT" = true ]] && symbol=""
-        ssh_info="${P_MAGENTA}${symbol} ${P_RESET}"
+        [[ "$USE_NERD_FONT" = true ]] && symbol="󰒍 "
+        ssh_info="${P_MAGENTA}${symbol}${P_RESET}"
     fi
 
     # Background Jobs
@@ -151,8 +152,8 @@ build_prompt() {
     job_count=$(jobs -r | wc -l)
     if [[ $job_count -gt 0 ]]; then
         local symbol="jobs"
-        [[ "$USE_NERD_FONT" = true ]] && symbol=""
-        jobs_info=" ${P_CYAN}${symbol} ${job_count}${P_RESET}"
+        [[ "$USE_NERD_FONT" = true ]] && symbol="󰜎 "
+        jobs_info=" ${P_CYAN}${symbol}${job_count}${P_RESET}"
     fi
 
     # Build Final PS1

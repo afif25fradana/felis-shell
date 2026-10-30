@@ -3,9 +3,6 @@
 # ~/.bashrc.d/functions/fileops.sh - File Operations
 #
 
-# Enable pipefail for better error handling in pipelines
-set -o pipefail
-
 # --- File Operations ---
 
 # Extracts a wide variety of archive formats automatically based on file extension.
