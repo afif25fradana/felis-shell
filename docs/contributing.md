@@ -1,59 +1,61 @@
 # Contributing to Felis Shell
 
-Hey there! Thanks for your interest in contributing to Felis Shell. This is a personal hobby project, and I'm excited that you'd like to help out. Any contributions, big or small, are welcome!
+Thank you for your interest in contributing to Felis Shell! Whether you are fixing a typo, improving WSL2 compatibility, or adding a new shortcut, all contributions are appreciated.
 
-## How You Can Help
+---
 
-1.  **Fork the Repo:** Start by forking this repository to your own GitHub account.
-2.  **Clone Your Fork:** Clone your forked repo to your computer.
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/Felis-Shell-Modular-Dotfile.git
-    cd Felis-Shell-Modular-Dotfile
-    ```
-3.  **Create a New Branch:** Make a new branch for your changes. A descriptive name is helpful (e.g., `feature/add-cool-alias`).
-    ```bash
-    git checkout -b feature/your-cool-idea
-    ```
-4.  **Make Your Changes:** Go ahead and make your changes. Try to follow the existing code style, but don't stress too much about it.
-5.  **Test Your Changes:** Make sure your changes work as expected and don't break anything.
-6.  **Commit Your Changes:** Write a simple, clear commit message.
-    ```bash
-    git add .
-    git commit -m "feat: Add a new alias for docker"
-    ```
-7.  **Push to Your Fork:** Push your new branch to your fork on GitHub.
-    ```bash
-    git push origin feature/your-cool-idea
-    ```
-8.  **Open a Pull Request (PR):** Head over to the original repo and open a new Pull Request. Give a quick description of what you've changed and why.
+## Development Workflow
 
-## A Few Style Tips
+1. **Fork & Clone**:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/Felis-Shell-Modular-Dotfile.git
+   cd Felis-Shell-Modular-Dotfile
+   ```
 
-To keep everything looking consistent, here are a few friendly guidelines:
+2. **Branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-*   **shellcheck:** It's a good idea to run `shellcheck` on your scripts to catch common errors.
-    ```bash
-    shellcheck your_script.sh
-    ```
-*   **Indentation:** I use 4 spaces for indentation.
-*   **Variable Names:** `snake_case` for local variables and `UPPER_SNAKE_CASE` for global ones.
-*   **Function Names:** `lowercase_with_underscores` for function names.
-*   **Comments:** If you write something complex, a quick comment explaining it is always helpful.
-*   **Keep it Simple:** Try to keep functions and scripts focused on doing one thing well.
-*   **Readability:** Clear and simple code is always better than a clever one-liner that's hard to understand.
+3. **Make Changes**:
+   * Keep modular boundaries intact: aliases in `01-aliases.sh`, prompt logic in `02-prompt.sh`, hooks in `03-hooks.sh`, and modular functions in `functions/`.
+   * Adhere to the code standards below.
 
-## Found a Bug?
+4. **Verify Locally**:
+   Run the test harness before committing:
+   ```bash
+   ./test_dotfiles.sh
+   ```
 
-If you find a bug, please open an issue on the [GitHub Issues page](https://github.com/afif25fradana/Felis-Shell-Modular-Dotfile/issues). In your issue, try to include:
+5. **Commit & Push**:
+   Use conventional commits (`feat: ...`, `fix: ...`, `docs: ...`):
+   ```bash
+   git commit -m "feat(aliases): add new shortcut for dev workflow"
+   git push origin feature/your-feature-name
+   ```
 
-*   A clear title.
-*   A good description of the problem.
-*   Steps to reproduce the bug.
-*   What you expected to happen and what actually happened.
-*   Info about your setup (OS, shell, terminal, etc.).
+6. **Submit PR**: Open a pull request describing the rationale and changes made.
 
-## Have an Idea?
+---
 
-If you have an idea for a new feature, feel free to open an issue to suggest it. I'm always open to new ideas!
+## Coding Standards
 
-Thanks again for your help!
+* **Indentation**: 2 spaces (matching `.editorconfig`). No tabs.
+* **Line Endings**: LF only (enforced by `.gitattributes`).
+* **Shellcheck**: Validate shell scripts with `shellcheck`:
+  ```bash
+  shellcheck your_script.sh
+  ```
+* **Namespace Discipline**:
+  * Never place `set -o pipefail` or `shopt -s nullglob` at file scope inside modular function files (`functions/*.sh`), as sourcing them leaks options into the user's interactive session.
+  * Use local variables (`local var_name`) inside all functions.
+  * Prefix internal variables to avoid clobbering Bash reserved variables (e.g. `_FS_DIRSTACK`).
+* **Cross-Platform Awareness**: Test or guard commands that behave differently between Linux native, WSL2, and different distributions (Arch vs Debian).
+
+---
+
+## Reporting Issues
+
+If you encounter an issue or unexpected behavior:
+1. Check the [Reference Manual](reference.md#4-troubleshooting--wsl2-gotchas) for common setup quirks.
+2. Open an issue on GitHub with reproduction steps, your operating system (or WSL version), and terminal emulator information.
