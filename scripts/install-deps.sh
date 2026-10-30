@@ -19,7 +19,7 @@ print_error() { echo -e "${RED}✗${NC} $*" >&2; }
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
-    VERSION_ID=$VERSION_ID
+    VERSION_ID="${VERSION_ID:-}"
 else
     OS=$(uname -s)
     VERSION_ID=""

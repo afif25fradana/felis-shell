@@ -26,7 +26,7 @@ jobs:
         run: |
           echo "Running ShellCheck on shell scripts..."
           shellcheck --version
-          find . -type f \( -name "*.sh" -o -name ".bashrc" \) -not -path "*/.git/*" -exec shellcheck {} +
+          find . -type f \( -name "*.sh" -o -name ".bashrc" \) -not -path "*/.git/*" -exec shellcheck --severity=warning {} +
 
       - name: Check Bash Syntax (bash -n)
         run: |

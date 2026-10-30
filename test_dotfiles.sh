@@ -38,7 +38,7 @@ print_verbose() {
 # Debug function
 debug_pause() {
     if [[ "$DEBUG" == "true" ]]; then
-        read -p "Press Enter to continue..." </dev/tty
+        read -r -p "Press Enter to continue..." </dev/tty
     fi
 }
 
@@ -537,7 +537,7 @@ test_integration() {
                     continue
                 fi
                 print_debug "Testing sourcing of: $module"
-                if bash -c "source "$module" && echo 'SUCCESS' || echo 'FAILED'" 2>/dev/null | grep -q "SUCCESS"; then
+                if bash -c "source \"$module\" && echo 'SUCCESS' || echo 'FAILED'" 2>/dev/null | grep -q "SUCCESS"; then
                     print_success "Successfully sourced $module"
                 else
                     print_warning "Issues when sourcing $module"
