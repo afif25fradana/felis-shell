@@ -37,8 +37,8 @@ Felis Shell loads configuration modules from `~/.bashrc.d` via `~/.bashrc` in a 
 ### 1. Clone Repository
 Clone Felis Shell into your home directory (recommended to keep on native Linux ext4 inside WSL for best I/O performance):
 ```bash
-git clone https://github.com/afif25fradana/Felis-Shell-Modular-Dotfile.git ~/felis-shell
-cd ~/felis-shell
+git clone https://github.com/afif25fradana/felis-shell.git
+cd felis-shell
 ```
 
 ### 2. Verify with Dry-Run

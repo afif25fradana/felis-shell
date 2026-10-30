@@ -8,8 +8,8 @@ Thank you for your interest in contributing to Felis Shell! Whether you are fixi
 
 1. **Fork & Clone**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/Felis-Shell-Modular-Dotfile.git
-   cd Felis-Shell-Modular-Dotfile
+   git clone https://github.com/YOUR_USERNAME/felis-shell.git
+   cd felis-shell
    ```
 
 2. **Branch**:
