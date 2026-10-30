@@ -112,7 +112,8 @@ _fs_auto_activate_venv() {
     fi
 
     # Look for virtual environments in common locations
-    local venv_paths=(".venv" "venv" ".env" "env")
+    local default_name="${DEFAULT_VENV_NAME:-.venv}"
+    local venv_paths=("$default_name" ".venv" "venv" ".env" "env")
     local venv_found=""
 
     for venv_path in "${venv_paths[@]}"; do
@@ -300,9 +301,7 @@ shopt -s lithist          # Save multi-line commands with newlines
 
 # Better globbing
 shopt -s globstar         # Enable ** for recursive globbing
-shopt -s nullglob         # Null globbing (empty if no matches)
 shopt -s extglob          # Extended globbing
-shopt -s nocaseglob       # Case-insensitive globbing
 
 # Better completion
 shopt -s cdspell          # Correct minor spelling errors in cd

@@ -505,8 +505,8 @@ test_integration() {
     echo "Test 8: Running integration tests..."
     local integration_issues=0
     
-    # Test sourcing .bashrc in a subshell
-    if bash -c "source .bashrc && echo 'SUCCESS'" >/dev/null 2>&1; then
+    # Test sourcing .bashrc in an interactive subshell without host rc
+    if BASHRC_DIR="$PWD/.bashrc.d" FASTFETCH_ENABLED=false bash --norc -i -c "source .bashrc && echo 'SUCCESS'" >/dev/null 2>&1; then
         print_success "Successfully sourced .bashrc"
     else
         print_error "Failed to source .bashrc"

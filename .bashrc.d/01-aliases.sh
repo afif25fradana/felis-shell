@@ -238,20 +238,6 @@ alias ff='$HOME/.local/bin/random-fastfetch.sh'
 # System info with random image fastfetch
 alias sysinfo='$HOME/.local/bin/random-fastfetch.sh'
 
-# Context-aware aliases
-if [[ -f "package.json" ]]; then
-    alias start='npm start'
-    alias test='npm test'
-    alias dev='npm run dev'
-elif [[ -f "Cargo.toml" ]]; then
-    alias run='cargo run'
-    alias test='cargo test'
-    alias build='cargo build'
-elif [[ -f "requirements.txt" ]] || [[ -f "setup.py" ]]; then
-    alias run='python main.py'
-    alias test='pytest'
-fi
-
 # Fun Stuff
 if command -v fortune >/dev/null && command -v cowsay >/dev/null; then
     alias wisdom='fortune | cowsay'

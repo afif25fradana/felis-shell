@@ -71,7 +71,7 @@ jobs:
       - name: Verify Interactive Login Shell Sourcing
         run: |
           echo "Testing shell startup with ~/.bashrc..."
-          bash -l -c "exit 0"
+          FASTFETCH_ENABLED=false bash --norc -l -i -c "exit 0"
 
       - name: Test Installation Idempotency (Re-run)
         run: |

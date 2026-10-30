@@ -39,10 +39,10 @@ sysclean() {
     fi
 
     # Function to handle command execution with error checking
-    run_cmd() {
-        local cmd=$1
-        local msg=$2
-        if ! eval "$cmd"; then
+    _fs_sysclean_exec() {
+        local msg="$1"
+        shift
+        if ! "$@"; then
             print_error "Failed: $msg"
             has_error=true
             return 1
@@ -50,6 +50,7 @@ sysclean() {
         has_performed_action=true
         return 0
     }
+    trap 'unset -f _fs_sysclean_exec 2>/dev/null' RETURN
 
     # Check for different package managers and clean accordingly
     if command -v pacman >/dev/null 2>&1; then
@@ -60,7 +61,7 @@ sysclean() {
         fi
 
         print_info "Cleaning pacman cache..."
-        run_cmd "sudo pacman -Sc --noconfirm" "pacman cache cleanup"
+        _fs_sysclean_exec "pacman cache cleanup" sudo pacman -Sc --noconfirm
 
         print_info "Removing orphan packages..."
         local orphans
@@ -80,10 +81,10 @@ sysclean() {
         # Clean AUR helper cache if available
         if command -v yay >/dev/null 2>&1; then
             print_info "Cleaning yay cache..."
-            run_cmd "yay -Sc --noconfirm" "yay cache cleanup"
+            _fs_sysclean_exec "yay cache cleanup" yay -Sc --noconfirm
         elif command -v paru >/dev/null 2>&1; then
             print_info "Cleaning paru cache..."
-            run_cmd "paru -Sc --noconfirm" "paru cache cleanup"
+            _fs_sysclean_exec "paru cache cleanup" paru -Sc --noconfirm
         fi
     elif command -v apt >/dev/null; then
         # Debian/Ubuntu
@@ -93,9 +94,9 @@ sysclean() {
         fi
 
         print_info "Cleaning apt cache..."
-        run_cmd "sudo apt autoremove -y" "apt autoremove"
-        run_cmd "sudo apt autoclean" "apt autoclean"
-        run_cmd "sudo apt clean" "apt clean"
+        _fs_sysclean_exec "apt autoremove" sudo apt autoremove -y
+        _fs_sysclean_exec "apt autoclean" sudo apt autoclean
+        _fs_sysclean_exec "apt clean" sudo apt clean
 
     elif command -v dnf >/dev/null; then
         # Fedora
@@ -105,8 +106,8 @@ sysclean() {
         fi
 
         print_info "Cleaning dnf cache..."
-        run_cmd "sudo dnf clean all" "dnf clean all"
-        run_cmd "sudo dnf autoremove -y" "dnf autoremove"
+        _fs_sysclean_exec "dnf clean all" sudo dnf clean all
+        _fs_sysclean_exec "dnf autoremove" sudo dnf autoremove -y
 
     elif command -v yum >/dev/null; then
         # Older Fedora/RHEL/CentOS
@@ -116,8 +117,8 @@ sysclean() {
         fi
 
         print_info "Cleaning yum cache..."
-        run_cmd "sudo yum clean all" "yum clean all"
-        run_cmd "sudo yum autoremove -y" "yum autoremove"
+        _fs_sysclean_exec "yum clean all" sudo yum clean all
+        _fs_sysclean_exec "yum autoremove" sudo yum autoremove -y
 
     elif command -v zypper >/dev/null; then
         # openSUSE
@@ -127,8 +128,8 @@ sysclean() {
         fi
 
         print_info "Cleaning zypper cache..."
-        run_cmd "sudo zypper clean" "zypper clean"
-        run_cmd "sudo zypper remove --clean-deps" "zypper remove --clean-deps"
+        _fs_sysclean_exec "zypper clean" sudo zypper clean
+        _fs_sysclean_exec "zypper remove --clean-deps" sudo zypper remove --clean-deps
 
     else
         print_warning "Unknown package manager - manual cleanup required"
@@ -140,8 +141,8 @@ sysclean() {
     [[ -d "$HOME/.cache" ]] && find "$HOME/.cache" -type f -atime +30 -delete 2>/dev/null
     [[ -d "$HOME/.local/share/Trash" ]] && rm -rf "$HOME/.local/share/Trash"/* 2>/dev/null
 
-    # Clean logs if we have permission
-    if [[ -w /var/log ]]; then
+    # Clean logs if systemd journal is available
+    if command -v journalctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
         print_info "Cleaning system logs..."
         sudo journalctl --vacuum-time=7d 2>/dev/null
     fi
@@ -197,9 +198,11 @@ serv() {
             ;;
     esac
 
-    if ! sudo -v; then
-        print_error "Failed to acquire sudo privileges"
-        return 1
+    if [[ "$user_flag" != "--user" && "$action" != "status" ]]; then
+        if ! sudo -v; then
+            print_error "Failed to acquire sudo privileges"
+            return 1
+        fi
     fi
 
     if [[ "$user_flag" == "--user" ]]; then

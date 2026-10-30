@@ -136,7 +136,7 @@ def test_example():
 EOF
 
     # Create basic main file
-    cat > src/"$project_name"/main.py << 'EOF'
+    cat > src/"$project_name"/main.py << EOF
 def main():
     print("Hello from $project_name!")
 
@@ -245,13 +245,13 @@ nodeinitplus() {
 
     # Install common dev dependencies
     print_info "Installing development dependencies..."
-    npm install --save-dev eslint prettier nodemon
-
-    # Add TypeScript dependencies if requested
     if [[ "$use_typescript" == "true" ]]; then
+        npm install --save-dev eslint prettier nodemon vitest
         print_info "Adding TypeScript support..."
         npm install --save-dev typescript @types/node ts-node
         npm install --save-dev @typescript-eslint/eslint-plugin @typescript-eslint/parser
+    else
+        npm install --save-dev eslint prettier nodemon jest
     fi
 
     # Create basic files
@@ -328,13 +328,12 @@ EOF
         npm pkg set scripts.build="tsc"
         npm pkg set scripts.start="node dist/index.js"
         npm pkg set scripts.dev="ts-node src/index.ts"
+        npm pkg set scripts.test="vitest run"
     else
         npm pkg set scripts.start="node src/index.js"
         npm pkg set scripts.dev="nodemon src/index.js"
+        npm pkg set scripts.test="jest"
     fi
-
-    # Add test script
-    npm pkg set scripts.test="jest"
 
     # Initialize git if not already a repo
     if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -369,7 +368,7 @@ webinit() {
     mkdir -p src/{css,js,assets} dist
 
     # Create basic HTML file
-    cat > src/index.html << 'EOF'
+    cat > src/index.html << EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>

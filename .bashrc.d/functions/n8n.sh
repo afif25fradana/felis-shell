@@ -3,6 +3,18 @@
 # ~/.bashrc.d/functions/n8n.sh - n8n & Ngrok Workflow
 #
 
+# Helper function to invoke Docker Compose v2 (plugin) with fallback to v1 (standalone)
+_fs_docker_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        print_error "Neither 'docker compose' nor 'docker-compose' found"
+        return 1
+    fi
+}
+
 # --- n8n Workflow Functions ---
 # Start n8n services
 start-n8n() {
@@ -15,7 +27,7 @@ start-n8n() {
     fi
     
     print_step "Starting n8n services..."
-    (cd "$n8n_dir" && docker-compose up -d) || return
+    (cd "$n8n_dir" && _fs_docker_compose up -d) || return
     print_success "n8n services started"
 }
 
@@ -30,7 +42,7 @@ stop-n8n() {
     fi
     
     print_step "Stopping n8n services..."
-    (cd "$n8n_dir" && docker-compose down) || return
+    (cd "$n8n_dir" && _fs_docker_compose down) || return
     print_success "n8n services stopped"
 }
 
@@ -45,7 +57,7 @@ logs-n8n() {
     fi
     
     print_step "Showing n8n container logs..."
-    (cd "$n8n_dir" && docker-compose logs -f) || return
+    (cd "$n8n_dir" && _fs_docker_compose logs -f) || return
 }
 
 # --- n8n & Ngrok Workflow ---
@@ -75,7 +87,7 @@ start-n8n-ngrok() {
     # Kill any existing ngrok process to start fresh
     killall ngrok 2>/dev/null
     # Start ngrok and log its output
-    ngrok http 5678 --log=stdout >/tmp/ngrok.log &
+    ngrok http 5678 --log=stdout >"$n8n_dir/ngrok.log" 2>&1 &
     sleep 2 # Give ngrok a moment to establish the tunnel
 
     print_step "Fetching public URL from ngrok API..."
@@ -85,18 +97,21 @@ start-n8n-ngrok() {
 
     if [[ -z "$public_url" || "$public_url" == "null" ]]; then
         print_error "Failed to get public URL from ngrok."
-        print_info "Check ngrok status with: cat /tmp/ngrok.log"
+        print_info "Check ngrok status with: cat $n8n_dir/ngrok.log"
         return 1
     fi
 
     print_success "Got public URL: $public_url"
 
     print_step "Updating WEBHOOK_URL in .env file..."
-    # Use sed to replace the WEBHOOK_URL value. Works even if it's empty.
-    sed -i "s|^WEBHOOK_URL=.*|WEBHOOK_URL=$public_url|" "$env_file"
+    if grep -q "^WEBHOOK_URL=" "$env_file"; then
+        sed -i "s|^WEBHOOK_URL=.*|WEBHOOK_URL=$public_url|" "$env_file"
+    else
+        echo "WEBHOOK_URL=$public_url" >> "$env_file"
+    fi
 
     print_step "Starting n8n and postgres containers..."
-    (cd "$n8n_dir" && docker-compose up -d) || return
+    (cd "$n8n_dir" && _fs_docker_compose up -d) || return
 
     print_success "n8n is starting up and accessible at: $public_url"
 }

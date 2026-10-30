@@ -5,6 +5,9 @@ PROMPT_GIT_CACHE_TIMEOUT=5  # Cache git status for 5 seconds
 PROMPT_CACHE_DIR="${BASHRC_CACHE_DIR:-$HOME/.cache/bashrc}"
 mkdir -p "$PROMPT_CACHE_DIR"
 
+_FS_CACHED_NODE_BIN=""
+_FS_CACHED_NODE_VERSION=""
+
 # Git Status Cache Function
 _fs_get_git_status_cached() {
     local repo_root
@@ -90,7 +93,12 @@ build_prompt() {
 
     # Git Status
     local git_info=""
-    if git rev-parse --is-inside-work-tree &>/dev/null; then
+    local check_git=true
+    if [[ "${FELIS_PROMPT_GIT_MNT:-false}" != "true" && -n "$WSL_DISTRO_NAME" && ("$PWD" == /mnt || "$PWD" == /mnt/*) ]]; then
+        check_git=false
+    fi
+
+    if [[ "$check_git" == "true" ]] && git rev-parse --is-inside-work-tree &>/dev/null; then
         local git_status
         git_status=$(_fs_get_git_status_cached)
 
@@ -116,13 +124,19 @@ build_prompt() {
 
     # Node.js Version (if in Node project)
     local node_info=""
-    if [[ -f "package.json" ]] && command -v node >/dev/null; then
-        local node_version
-        node_version=$(node --version 2>/dev/null)
-        if [[ -n "$node_version" ]]; then
-            local symbol="js"
-            [[ "$USE_NERD_FONT" = true ]] && symbol="󰌞 "
-            node_info=" ${P_GREEN}${symbol}${node_version#v}${P_RESET}"
+    if [[ -f "package.json" ]]; then
+        local node_bin
+        node_bin=$(command -v node 2>/dev/null)
+        if [[ -n "$node_bin" ]]; then
+            if [[ "$_FS_CACHED_NODE_BIN" != "$node_bin" || -z "$_FS_CACHED_NODE_VERSION" ]]; then
+                _FS_CACHED_NODE_BIN="$node_bin"
+                _FS_CACHED_NODE_VERSION=$("$node_bin" --version 2>/dev/null)
+            fi
+            if [[ -n "$_FS_CACHED_NODE_VERSION" ]]; then
+                local symbol="js"
+                [[ "$USE_NERD_FONT" = true ]] && symbol="󰌞 "
+                node_info=" ${P_GREEN}${symbol}${_FS_CACHED_NODE_VERSION#v}${P_RESET}"
+            fi
         fi
     fi
 
@@ -168,9 +182,10 @@ build_prompt() {
 # Git Repository Change Hook
 # Clear git cache when changing directories
 _fs_clear_git_cache_on_cd() {
-    local old_repo new_repo
-    old_repo=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-    # Note: In the hook system, cd is already called by the main cd function
+    local old_repo="" new_repo=""
+    if [[ -n "$OLDPWD" && -d "$OLDPWD" ]]; then
+        old_repo=$(git -C "$OLDPWD" rev-parse --show-toplevel 2>/dev/null || echo "")
+    fi
     new_repo=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 
     # If we changed repositories, clear the old cache

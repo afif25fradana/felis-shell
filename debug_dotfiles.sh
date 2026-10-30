@@ -82,13 +82,13 @@ debug_session() {
     
     # Check sourcing
     print_info "Testing .bashrc sourcing..."
-    if bash -c "source .bashrc 2>/dev/null && echo 'SUCCESS'" >/dev/null; then
+    if BASHRC_DIR="$PWD/.bashrc.d" FASTFETCH_ENABLED=false bash --norc -i -c "source .bashrc 2>/dev/null && echo 'SUCCESS'" >/dev/null; then
         print_success "Successfully sourced .bashrc"
     else
         print_error "Failed to source .bashrc"
         print_info "Trying to identify the issue..."
         # Try to source with error output
-        if bash -c "source .bashrc" 2>/tmp/bashrc_error; then
+        if BASHRC_DIR="$PWD/.bashrc.d" FASTFETCH_ENABLED=false bash --norc -i -c "source .bashrc" 2>/tmp/bashrc_error; then
             print_success "Actually sourced .bashrc successfully"
         else
             print_error "Error when sourcing .bashrc:"
@@ -111,7 +111,7 @@ debug_session() {
     
     # Check custom functions
     print_info "Testing custom functions..."
-    if bash -i -c "source .bashrc && type extract >/dev/null 2>&1" 2>/dev/null; then
+    if BASHRC_DIR="$PWD/.bashrc.d" FASTFETCH_ENABLED=false bash --norc -i -c "source .bashrc && type extract >/dev/null 2>&1" 2>/dev/null; then
         print_success "Extract function is available"
     else
         print_warning "Extract function is not available"
@@ -119,7 +119,7 @@ debug_session() {
     
     # Check aliases
     print_info "Testing aliases..."
-    if bash -i -c "source .bashrc && alias ll >/dev/null 2>&1" 2>/dev/null; then
+    if BASHRC_DIR="$PWD/.bashrc.d" FASTFETCH_ENABLED=false bash --norc -i -c "source .bashrc && alias ll >/dev/null 2>&1" 2>/dev/null; then
         print_success "ll alias is available"
     else
         print_warning "ll alias is not available"

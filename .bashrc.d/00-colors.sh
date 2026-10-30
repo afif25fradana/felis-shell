@@ -61,5 +61,5 @@ print_info() { echo -e "${C_INFO}ℹ${C_RESET} $*"; }
 
 # Enhanced Error Handling
 print_debug() {
-    [[ "${BASHRC_DEBUG:-false}" == "true" ]] && echo -e "${C_GRAY}🐛 DEBUG:${C_RESET} $*" >&2
+    [[ "${FELIS_SHELL_DEBUG:-false}" == "true" || "${BASHRC_DEBUG:-false}" == "true" ]] && echo -e "${C_GRAY}🐛 DEBUG:${C_RESET} $*" >&2
 }

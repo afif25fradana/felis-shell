@@ -18,7 +18,7 @@ export FELIS_SHELL_VERBOSE=${FELIS_SHELL_VERBOSE:-false}
 BASHRC_CACHE_DIR="$HOME/.cache/bashrc"
 mkdir -p "$BASHRC_CACHE_DIR"
 
-BASHRC_DIR="$HOME/.bashrc.d"
+BASHRC_DIR="${BASHRC_DIR:-$HOME/.bashrc.d}"
 # Resolve symlink to actual directory if needed
 if [[ -L "$BASHRC_DIR" ]]; then
     BASHRC_DIR=$(readlink -f "$BASHRC_DIR")
@@ -93,3 +93,6 @@ fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Ensure clean exit status when sourced
+:

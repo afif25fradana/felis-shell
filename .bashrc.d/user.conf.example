@@ -34,3 +34,7 @@ export DEFAULT_VENV_NAME=".venv"
 # Enable or disable Nerd Font icons in the prompt
 # Set to false to use text-based symbols instead of icons
 export USE_NERD_FONT=true
+
+# Enable git status checks on WSL2 /mnt/* Windows drives
+# Set to true to display git branch in Windows NTFS mounts (may introduce 9P latency)
+export FELIS_PROMPT_GIT_MNT=false
