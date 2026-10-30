@@ -86,7 +86,7 @@ find_dotfiles() {
     print_debug "Finding dotfiles..."
     
     # Add root-level files
-    for file in .bashrc .gitconfig .inputrc .editorconfig; do
+    for file in .bashrc .gitconfig.example .inputrc .editorconfig; do
         if [[ -f "$file" ]]; then
             files+=("$file")
             print_verbose "Found root file: $file"

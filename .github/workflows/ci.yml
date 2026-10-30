@@ -76,4 +76,12 @@ jobs:
       - name: Test Installation Idempotency (Re-run)
         run: |
           echo "Testing re-run of installer on existing symlinks..."
+          before=$(find "$HOME" -maxdepth 3 -name '*.backup.*' 2>/dev/null | wc -l)
           ./install.sh --yes
+          after=$(find "$HOME" -maxdepth 3 -name '*.backup.*' 2>/dev/null | wc -l)
+          if [ "$before" -ne "$after" ]; then
+            echo "Error: Installer is not idempotent! Backup files generated on re-run ($before -> $after)"
+            find "$HOME" -maxdepth 3 -name '*.backup.*'
+            exit 1
+          fi
+          echo "Idempotency verified: 0 backup files generated on re-run."

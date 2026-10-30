@@ -65,7 +65,7 @@ Reload your shell environment:
 source ~/.bashrc
 ```
 
-*Note: Existing configuration files (`~/.bashrc`, `~/.gitconfig`) are backed up with timestamps (`~/.bashrc.backup.YYYYMMDD_HHMMSS`) before symlinks are created. Existing personal git identity in `~/.gitconfig` is automatically preserved.*
+*Note: Existing configuration files (`~/.bashrc`, `~/.inputrc`, etc.) are backed up with timestamps (`~/.bashrc.backup.YYYYMMDD_HHMMSS`) before symlinks are created. Host Git configuration is preserved untouched (see `.gitconfig.example` for reference settings).*
 
 ---
 

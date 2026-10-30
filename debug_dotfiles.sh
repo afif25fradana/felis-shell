@@ -58,7 +58,7 @@ debug_session() {
     
     # Check essential files
     print_info "Checking essential files..."
-    local files=(".bashrc" ".gitconfig" ".inputrc" ".editorconfig" "install.sh" "test_dotfiles.sh")
+    local files=(".bashrc" ".gitconfig.example" ".inputrc" ".editorconfig" "install.sh" "test_dotfiles.sh")
     for file in "${files[@]}"; do
         if [[ -f "$file" ]]; then
             print_success "Found file: $file"

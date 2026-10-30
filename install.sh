@@ -78,9 +78,24 @@ check_permissions() {
 # Backup existing files
 backup_file() {
     local file="$1"
+    local source="${2:-$repo_root/$file}"
     local backup
     local target="$HOME/$file"
     
+    # Idempotency check: skip backup if target already matches intended source
+    if [[ -L "$target" ]]; then
+        local current_dest intended_dest
+        current_dest=$(readlink -f "$target" 2>/dev/null || true)
+        intended_dest=$(readlink -f "$source" 2>/dev/null || true)
+        if [[ -n "$current_dest" && -n "$intended_dest" && "$current_dest" == "$intended_dest" ]]; then
+            return 0
+        fi
+    elif [[ -f "$target" && -f "$source" ]]; then
+        if cmp -s "$target" "$source" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
     # Dry run mode - just show what would be done
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         if [[ -e "$target" || -L "$target" ]]; then
@@ -140,6 +155,17 @@ install_dotfile() {
         print_error "Source file does not exist: $source"
         return 1
     fi
+
+    # Idempotency check: already points to source
+    if [[ -L "$target" ]]; then
+        local current_dest intended_dest
+        current_dest=$(readlink -f "$target" 2>/dev/null || true)
+        intended_dest=$(readlink -f "$source" 2>/dev/null || true)
+        if [[ -n "$current_dest" && -n "$intended_dest" && "$current_dest" == "$intended_dest" ]]; then
+            print_success "Already installed $target"
+            return 0
+        fi
+    fi
     
     # Dry run mode - just show what would be done
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
@@ -191,6 +217,12 @@ copy_file() {
     local source="$1"
     local target="$2"
     
+    # Idempotency check: regular file matches source content
+    if [[ -f "$target" ]] && cmp -s "$source" "$target" 2>/dev/null; then
+        print_success "Already up to date $target"
+        return 0
+    fi
+
     # Dry run mode - just show what would be done
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         echo "  Would copy: $target"
@@ -300,23 +332,30 @@ install_dotfiles() {
     
     # --- Installation ---
     
-    # Install root-level dotfiles
-    for file in .bashrc .gitconfig .inputrc .editorconfig; do
+    # Install root-level dotfiles (git identity handled separately to avoid placeholder clobbering)
+    for file in .bashrc .inputrc .editorconfig; do
         if [[ -f "$repo_root/$file" ]]; then
-            # Protect existing personal .gitconfig from being replaced with repo template
-            if [[ "$file" == ".gitconfig" && -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" ]]; then
-                if git config -f "$HOME/.gitconfig" --get user.email >/dev/null 2>&1; then
-                    print_info "Preserving existing personal git config ($HOME/.gitconfig)"
-                    continue
-                fi
-            fi
-            backup_file "$file"
+            backup_file "$file" "$repo_root/$file"
             install_dotfile "$repo_root/$file" "$HOME/$file"
         fi
     done
+
+    # Preserve and verify host Git identity
+    local git_user git_email
+    git_user=$(git config --global user.name 2>/dev/null || true)
+    git_email=$(git config --global user.email 2>/dev/null || true)
+    if [[ -n "$git_user" && -n "$git_email" ]]; then
+        print_info "Preserving existing Git identity ($git_user <$git_email>)"
+    else
+        print_warning "Git identity is not configured globally."
+        print_info "To set your git credentials, run:"
+        echo -e "    git config --global user.name \"Your Name\""
+        echo -e "    git config --global user.email \"you@example.com\""
+        print_info "A reference template is available at $repo_root/.gitconfig.example"
+    fi
     
     # Install .bashrc.d directory
-    backup_file ".bashrc.d"
+    backup_file ".bashrc.d" "$repo_root/.bashrc.d"
     install_dotfile "$repo_root/.bashrc.d" "$HOME/.bashrc.d"
     
     # Install .config directory contents
@@ -325,7 +364,7 @@ install_dotfiles() {
         for config_item in "$repo_root/.config/kitty/"*; do
             local item_name
             item_name=$(basename "$config_item")
-            backup_file ".config/kitty/$item_name"
+            backup_file ".config/kitty/$item_name" "$config_item"
             install_dotfile "$config_item" "$HOME/.config/kitty/$item_name"
         done
     fi
@@ -335,7 +374,7 @@ install_dotfiles() {
     
     # Install random-fastfetch.sh script
     if [[ -f "$repo_root/random-fastfetch.sh" ]]; then
-        backup_file ".local/bin/random-fastfetch.sh"
+        backup_file ".local/bin/random-fastfetch.sh" "$repo_root/random-fastfetch.sh"
         install_dotfile "$repo_root/random-fastfetch.sh" "$HOME/.local/bin/random-fastfetch.sh"
     fi
     
@@ -347,7 +386,7 @@ install_dotfiles() {
                 item_name=$(basename "$bin_item")
                 # Skip random-fastfetch.sh as it's handled separately
                 if [[ "$item_name" != "random-fastfetch.sh" ]]; then
-                    backup_file ".local/bin/$item_name"
+                    backup_file ".local/bin/$item_name" "$bin_item"
                     install_dotfile "$bin_item" "$HOME/.local/bin/$item_name"
                 fi
             fi
@@ -362,7 +401,7 @@ install_dotfiles() {
             if [[ -f "$logo_file" ]]; then
                 local logo_name
                 logo_name=$(basename "$logo_file")
-                backup_file ".dotfiles/logos/$logo_name"
+                backup_file ".dotfiles/logos/$logo_name" "$logo_file"
                 copy_file "$logo_file" "$HOME/.dotfiles/logos/$logo_name"
             fi
         done
