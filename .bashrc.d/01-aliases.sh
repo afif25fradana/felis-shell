@@ -3,7 +3,37 @@
 # Environment Detection
 if [[ -n "$WSL_DISTRO_NAME" ]]; then
     export BASHRC_ENV="wsl"
-    alias open='explorer.exe'
+
+    open() {
+        if command -v wslview >/dev/null 2>&1; then
+            wslview "$@"
+            return
+        fi
+        local target="${1:-.}"
+        if [[ "$target" =~ ^[a-zA-Z]+:// ]]; then
+            explorer.exe "$target"
+        else
+            explorer.exe "$(wslpath -w "$target" 2>/dev/null || echo "$target")"
+        fi
+    }
+
+    clip() {
+        if [[ -t 0 ]]; then
+            print_warning "Usage: <command> | clip"
+            return 1
+        fi
+        clip.exe "$@"
+    }
+
+    paste() {
+        if command -v wsl-paste >/dev/null 2>&1; then
+            wsl-paste --no-newline
+        elif command -v powershell.exe >/dev/null 2>&1; then
+            powershell.exe -NoProfile -NonInteractive -Command \
+                '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Clipboard -Raw' 2>/dev/null | tr -d '\r'
+        fi
+    }
+
     if command -v wslview >/dev/null; then
         export BROWSER="${BROWSER:-wslview}"
     else

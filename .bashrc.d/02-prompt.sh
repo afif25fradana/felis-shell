@@ -33,8 +33,10 @@ _fs_get_git_status_cached() {
     git_output=$(git status --porcelain -b 2>/dev/null)
 
     if [[ -n "$git_output" ]]; then
-        # Extract branch name
-        branch=$(echo "$git_output" | head -n 1 | sed -e 's/^## //;s/\.\.\..*$//' -e 's/\[.*\]$//')
+        local first_line="${git_output%%$'\n'*}"
+        branch=$(echo "$first_line" | sed -e 's/^## //;s/\.\.\..*$//' -e 's/ *\[.*\]$//')
+        branch=${branch#No commits yet on }
+        branch=${branch#Initial commit on }
 
         # Handle detached HEAD
         if [[ "$branch" == "HEAD (no branch)" ]] || [[ -z "$branch" ]]; then
@@ -46,22 +48,16 @@ _fs_get_git_status_cached() {
         symbol="git"
         [[ "$USE_NERD_FONT" = true ]] && symbol=" "
 
-        # Check for changes (dirty repo)
+        local ahead="" behind=""
+        [[ "$first_line" =~ \[.*ahead\ ([0-9]+) ]] && ahead=" ↑${BASH_REMATCH[1]}"
+        [[ "$first_line" =~ \[.*behind\ ([0-9]+) ]] && behind=" ↓${BASH_REMATCH[1]}"
+
         if [[ $(echo "$git_output" | wc -l) -gt 1 ]]; then
-            git_status="dirty $symbol $branch"
+            git_status="dirty $symbol $branch${ahead}${behind}"
+        elif [[ -n "$ahead" || -n "$behind" ]]; then
+            git_status="ahead $symbol $branch${ahead}${behind}"
         else
-            # Check for unpushed commits
-            if git rev-parse --verify HEAD >/dev/null 2>&1; then
-                local unpushed
-                unpushed=$(git rev-list --count "@{u}..HEAD" 2>/dev/null || echo "0")
-                if [[ "$unpushed" -gt 0 ]]; then
-                    git_status="ahead $symbol $branch ↑$unpushed"
-                else
-                    git_status="clean $symbol $branch"
-                fi
-            else
-                git_status="clean $symbol $branch"
-            fi
+            git_status="clean $symbol $branch"
         fi
     fi
 
@@ -105,7 +101,7 @@ build_prompt() {
         if [[ -n "$git_status" ]]; then
             read -r status symbol branch extra <<< "$git_status"
             case "$status" in
-                "dirty")  git_info=" ${P_YELLOW}${symbol} ${branch}*${P_RESET}" ;;
+                "dirty")  git_info=" ${P_YELLOW}${symbol} ${branch}*${extra:+ ${P_GRAY}${extra}}${P_RESET}" ;;
                 "ahead")  git_info=" ${P_CYAN}${symbol} ${branch} ${P_GRAY}${extra}${P_RESET}" ;;
                 "clean")  git_info=" ${P_GREEN}${symbol} ${branch}${P_RESET}" ;;
             esac
@@ -142,15 +138,10 @@ build_prompt() {
 
     # Working Directory
     # Show abbreviated path for long directories
-    local pwd_info
-    if [[ ${#PWD} -gt 50 ]]; then
-        pwd_info="...${PWD: -47}"
-    else
-        pwd_info="$PWD"
+    local pwd_info="${PWD/#$HOME/~}"
+    if [[ ${#pwd_info} -gt 50 ]]; then
+        pwd_info="...${pwd_info: -47}"
     fi
-
-    # Replace home directory with ~
-    pwd_info=${pwd_info/#$HOME/\~}
 
     # SSH Indicator
     local ssh_info=""
@@ -182,6 +173,11 @@ build_prompt() {
 # Git Repository Change Hook
 # Clear git cache when changing directories
 _fs_clear_git_cache_on_cd() {
+    # Skip on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
+    if [[ "${FELIS_PROMPT_GIT_MNT:-false}" != "true" && -n "$WSL_DISTRO_NAME" && ("$PWD" == /mnt || "$PWD" == /mnt/*) ]]; then
+        return 0
+    fi
+
     local old_repo="" new_repo=""
     if [[ -n "$OLDPWD" && -d "$OLDPWD" ]]; then
         old_repo=$(git -C "$OLDPWD" rev-parse --show-toplevel 2>/dev/null || echo "")

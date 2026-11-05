@@ -40,7 +40,7 @@ Thank you for your interest in contributing to Felis Shell! Whether you are fixi
 
 ## Coding Standards
 
-* **Indentation**: 2 spaces (matching `.editorconfig`). No tabs.
+* **Indentation**: 4 spaces (matching `.editorconfig`). No tabs.
 * **Line Endings**: LF only (enforced by `.gitattributes`).
 * **Shellcheck**: Validate shell scripts with `shellcheck`:
   ```bash

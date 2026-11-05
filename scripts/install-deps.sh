@@ -35,8 +35,15 @@ install_ubuntu() {
                         software-properties-common gnupg
 
     print_info "Installing modern CLI tools..."
-    # Install available via apt
-    sudo apt install -y bat fd-find ripgrep fzf zoxide btop chafa kitty shellcheck gh python3 python3-pip cowsay fortune-mod
+    local terminal_pkg="kitty"
+    if [[ -n "$WSL_DISTRO_NAME" ]]; then
+        print_info "WSL environment detected: skipping GUI terminal (kitty)"
+        terminal_pkg=""
+    fi
+
+    local -a pkgs=(bat fd-find ripgrep fzf zoxide btop chafa shellcheck gh python3 python3-pip cowsay fortune-mod)
+    [[ -n "$terminal_pkg" ]] && pkgs+=("$terminal_pkg")
+    sudo apt install -y "${pkgs[@]}"
 
     # Setup symlinks for bat and fd
     mkdir -p "$HOME/.local/bin"
@@ -56,9 +63,13 @@ install_ubuntu() {
     # Install fastfetch (PPA or deb)
     if ! command -v fastfetch >/dev/null; then
         print_info "Installing fastfetch..."
-        sudo add-apt-repository -y ppa:zhangsongcui3371/fastfetch
-        sudo apt update
-        sudo apt install -y fastfetch
+        if [[ "$OS" == "debian" ]]; then
+            sudo apt install -y fastfetch || print_warning "fastfetch not available in current Debian repos; install via GitHub releases"
+        else
+            sudo add-apt-repository -y ppa:zhangsongcui3371/fastfetch
+            sudo apt update
+            sudo apt install -y fastfetch
+        fi
     fi
 }
 

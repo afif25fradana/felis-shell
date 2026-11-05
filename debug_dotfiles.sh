@@ -177,4 +177,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Run debug session
-debug_session
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    debug_session
+fi

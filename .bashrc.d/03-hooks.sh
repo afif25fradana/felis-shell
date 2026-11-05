@@ -83,6 +83,11 @@ declare -a BASHRC_CD_HOOKS=()
 
 # Auto-switch Node version based on .nvmrc
 _fs_auto_switch_node() {
+    # Skip on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
+    if [[ "${FELIS_PROMPT_GIT_MNT:-false}" != "true" && -n "$WSL_DISTRO_NAME" && ("$PWD" == /mnt || "$PWD" == /mnt/*) ]]; then
+        return 0
+    fi
+
     if [[ -f ".nvmrc" ]] && command -v nvm >/dev/null; then
         local required_version
         required_version=$(cat .nvmrc)
@@ -103,12 +108,17 @@ _fs_auto_switch_node() {
 _fs_auto_activate_venv() {
     # Deactivate current venv if we're outside its directory
     if [[ -n "$VIRTUAL_ENV" ]]; then
-        local venv_dir
-        venv_dir=$(dirname "$VIRTUAL_ENV")
-        if [[ ! "$(pwd -P)/" == "$venv_dir"/* ]]; then
+        local venv_root="${_FS_VENV_PROJECT_DIR:-$(dirname "$VIRTUAL_ENV")}"
+        if [[ ! "$(pwd -P)/" == "$venv_root"/* ]]; then
             print_info "Leaving virtual environment: $(basename "$VIRTUAL_ENV")"
             deactivate 2>/dev/null || unset VIRTUAL_ENV
+            unset _FS_VENV_PROJECT_DIR
         fi
+    fi
+
+    # WSL2 /mnt/* bypass (evaluated AFTER deactivation check above)
+    if [[ "${FELIS_PROMPT_GIT_MNT:-false}" != "true" && -n "$WSL_DISTRO_NAME" && ("$PWD" == /mnt || "$PWD" == /mnt/*) ]]; then
+        return 0
     fi
 
     # Look for virtual environments in common locations
@@ -126,26 +136,29 @@ _fs_auto_activate_venv() {
     # Activate if found and not already active
     if [[ -n "$venv_found" && -z "$VIRTUAL_ENV" ]]; then
         print_info "Activating virtual environment: $venv_found"
+        _FS_VENV_PROJECT_DIR="$(pwd -P)"
         source "$venv_found/bin/activate"
     fi
 
     # Check for Poetry environments
     if [[ -f "pyproject.toml" && -z "$VIRTUAL_ENV" ]] && command -v poetry >/dev/null; then
-        if poetry env info --path >/dev/null 2>&1; then
-            local poetry_venv
-            poetry_venv=$(poetry env info --path 2>/dev/null)
-            if [[ -n "$poetry_venv" && -f "$poetry_venv/bin/activate" ]]; then
-                print_info "Activating Poetry environment"
-                source "$poetry_venv/bin/activate"
-            fi
+        local poetry_venv
+        poetry_venv=$(poetry env info --path 2>/dev/null)
+        if [[ -n "$poetry_venv" && -f "$poetry_venv/bin/activate" ]]; then
+            print_info "Activating Poetry environment"
+            _FS_VENV_PROJECT_DIR="$(pwd -P)"
+            source "$poetry_venv/bin/activate"
         fi
     fi
 
     # Check for Pipenv
     if [[ -f "Pipfile" && -z "$VIRTUAL_ENV" ]] && command -v pipenv >/dev/null; then
-        if pipenv --venv >/dev/null 2>&1; then
+        local pipenv_venv
+        pipenv_venv=$(pipenv --venv 2>/dev/null)
+        if [[ -n "$pipenv_venv" && -f "$pipenv_venv/bin/activate" ]]; then
             print_info "Activating Pipenv environment"
-            eval "$(pipenv shell --quiet)"
+            _FS_VENV_PROJECT_DIR="$(pwd -P)"
+            source "$pipenv_venv/bin/activate"
         fi
     fi
 
@@ -176,7 +189,7 @@ _fs_cd_show_contents() {
     
     # Show directory contents if it's small
     local file_count
-    file_count=$(command find . -maxdepth 1 | wc -l)
+    file_count=$(command find . -mindepth 1 -maxdepth 1 2>/dev/null | head -n 21 | wc -l)
     
     if [[ "${FELIS_SHELL_DEBUG}" == "true" ]]; then
         echo "Debug: File count in directory: $file_count" >&2
@@ -289,7 +302,9 @@ _fs_prompt_hook() {
     push_dir
     build_prompt "$last_exit"
 }
-PROMPT_COMMAND="_fs_prompt_hook"
+PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt;/}"
+PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt/}"
+PROMPT_COMMAND="_fs_prompt_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 # Shell Options
 # Better history handling

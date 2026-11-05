@@ -128,8 +128,15 @@ sysclean() {
         fi
 
         print_info "Cleaning zypper cache..."
-        _fs_sysclean_exec "zypper clean" sudo zypper clean
-        _fs_sysclean_exec "zypper remove --clean-deps" sudo zypper remove --clean-deps
+        _fs_sysclean_exec "zypper clean" sudo zypper clean --all
+        if zypper packages --unneeded >/dev/null 2>&1; then
+            local unneeded
+            unneeded=$(zypper --quiet packages --unneeded | awk -F '|' '/^i/ {print $3}')
+            if [[ -n "$unneeded" ]]; then
+                read -r -a unneeded_pkgs <<< "$unneeded"
+                _fs_sysclean_exec "zypper rm unneeded" sudo zypper rm -u "${unneeded_pkgs[@]}"
+            fi
+        fi
 
     else
         print_warning "Unknown package manager - manual cleanup required"
@@ -138,8 +145,18 @@ sysclean() {
 
     # Clean user caches
     print_info "Cleaning user caches..."
-    [[ -d "$HOME/.cache" ]] && find "$HOME/.cache" -type f -atime +30 -delete 2>/dev/null
-    [[ -d "$HOME/.local/share/Trash" ]] && rm -rf "$HOME/.local/share/Trash"/* 2>/dev/null
+    if [[ -d "$HOME/.cache" ]]; then
+        find "$HOME/.cache" -type f -atime +30 -mtime +30 \
+            -not -path "*/fontconfig/*" \
+            -not -path "*/pip/*" \
+            -delete 2>/dev/null || true
+    fi
+
+    if [[ -d "$HOME/.local/share/Trash" ]]; then
+        print_info "Emptying trash..."
+        rm -rf "$HOME/.local/share/Trash/files"/* "$HOME/.local/share/Trash/info"/* 2>/dev/null || true
+        mkdir -p "$HOME/.local/share/Trash/files" "$HOME/.local/share/Trash/info"
+    fi
 
     # Clean logs if systemd journal is available
     if command -v journalctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then

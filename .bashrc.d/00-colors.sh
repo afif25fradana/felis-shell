@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Pre-initialize color variables to empty defaults
+export C_RESET='' C_BOLD='' C_DIM=''
+export C_RED='' C_GREEN='' C_YELLOW='' C_BLUE='' C_MAGENTA='' C_CYAN='' C_WHITE='' C_GRAY='' C_DARK_GRAY=''
+export C_SUCCESS='' C_WARNING='' C_ERROR='' C_INFO='' C_MUTED=''
+
 if [[ -t 1 ]] && command -v tput >/dev/null && tput colors >/dev/null 2>&1; then
     COLORS=$(tput colors 2>/dev/null || echo 0)
 

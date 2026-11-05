@@ -20,8 +20,11 @@
 #   dotfiles restore
 dotfiles() {
     local action="$1"
-    local dotfiles_dir="$HOME/.dotfiles"
-    
+    local repo_dest
+    repo_dest=$(readlink -f "$HOME/.bashrc" 2>/dev/null || true)
+    local dotfiles_dir
+    dotfiles_dir=$(dirname "$repo_dest")
+
     # Check if color functions are available, if not define them
     if ! command -v print_info >/dev/null 2>&1; then
         # Define fallback print functions if not available
@@ -30,82 +33,40 @@ dotfiles() {
         print_error() { echo -e "✗ $*" >&2; }
         print_info() { echo -e "ℹ $*"; }
     fi
-    
+
+    if [[ ! -L "$HOME/.bashrc" || ! -d "$dotfiles_dir/.git" ]]; then
+        print_error "Felis-Shell is not installed as a symlinked repository. Use ./install.sh"
+        return 1
+    fi
+
     case "$action" in
         "backup")
-            print_info "Backing up dotfiles..."
-            mkdir -p "$dotfiles_dir"
-            
-            # Backup main files
-            cp ~/.bashrc "$dotfiles_dir/"
-            [[ -f ~/.gitconfig ]] && cp ~/.gitconfig "$dotfiles_dir/"
-            [[ -f ~/.inputrc ]] && cp ~/.inputrc "$dotfiles_dir/"
-            [[ -f ~/.editorconfig ]] && cp ~/.editorconfig "$dotfiles_dir/"
-            
-            # Backup bashrc.d directory
-            mkdir -p "$dotfiles_dir/.bashrc.d"
-            for file in ~/.bashrc.d/*; do
-                local filename
-                filename=$(basename "$file")
-                cp -r "$file" "$dotfiles_dir/.bashrc.d/"
-            done
-            
-            # Backup .config directory (only specific configs)
-            if [[ -d ~/.config/kitty ]]; then
-                mkdir -p "$dotfiles_dir/.config/kitty"
-                [[ -f ~/.config/kitty/kitty.conf ]] && cp ~/.config/kitty/kitty.conf "$dotfiles_dir/.config/kitty/"
-            fi
-            
-            # Initialize git repo if it doesn't exist
-            if [[ ! -d "$dotfiles_dir/.git" ]]; then
-                if command -v git >/dev/null 2>&1; then
-                    (
-                        cd "$dotfiles_dir" && \
-                        git init && \
-                        git add . && \
-                        git commit -m "Initial dotfiles backup"
-                    ) || print_warning "Failed to initialize git repository"
-                    print_info "Initialized git repository in $dotfiles_dir"
+            print_info "Syncing dotfiles repository..."
+            (
+                cd "$dotfiles_dir" && \
+                git add . && \
+                if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+                    git commit -m "Dotfiles backup update: $(date '+%Y-%m-%d %H:%M:%S')"
+                    print_success "Changes committed to dotfiles repository"
                 else
-                    print_warning "Git not available, skipping repository initialization"
+                    print_info "No changes to commit in dotfiles repository"
                 fi
-            else
-                if command -v git >/dev/null 2>&1; then
-                    (
-                        cd "$dotfiles_dir" && \
-                        git add . && \
-                        git commit -m "Dotfiles backup update"
-                    ) || print_warning "Failed to commit changes to git repository"
-                fi
-            fi
-            
-            print_success "Dotfiles backed up to $dotfiles_dir"
+            ) || print_warning "Failed to commit changes to git repository"
             ;;
         "restore")
-            print_info "Restoring dotfiles..."
-            
-            # Restore main files
-            [[ -f "$dotfiles_dir/.bashrc" ]] && cp "$dotfiles_dir/.bashrc" ~/
-            [[ -f "$dotfiles_dir/.gitconfig" ]] && cp "$dotfiles_dir/.gitconfig" ~/
-            [[ -f "$dotfiles_dir/.inputrc" ]] && cp "$dotfiles_dir/.inputrc" ~/
-            [[ -f "$dotfiles_dir/.editorconfig" ]] && cp "$dotfiles_dir/.editorconfig" ~/
-            
-            # Restore bashrc.d directory
-            [[ -d "$dotfiles_dir/.bashrc.d" ]] && cp -r "$dotfiles_dir/.bashrc.d" ~/
-            
-            # Restore .config directory
-            if [[ -d "$dotfiles_dir/.config" ]]; then
-                mkdir -p ~/.config
-                [[ -d "$dotfiles_dir/.config/kitty" ]] && cp -r "$dotfiles_dir/.config/kitty" ~/.config/
+            print_info "Restoring dotfiles symlinks..."
+            if [[ -x "$dotfiles_dir/install.sh" ]]; then
+                "$dotfiles_dir/install.sh" --yes
+                print_success "Dotfiles restored via install.sh"
+            else
+                print_error "Installer script not found at $dotfiles_dir/install.sh"
+                return 1
             fi
-            
-            print_success "Dotfiles restored"
-            print_info "You may need to run 'source ~/.bashrc' to reload the configuration"
             ;;
         *)
             print_error "Usage: dotfiles <backup|restore>"
-            print_info "  backup  - Backup current dotfiles to ~/.dotfiles/"
-            print_info "  restore - Restore dotfiles from ~/.dotfiles/"
+            print_info "  backup  - Commit local dotfiles changes to repository"
+            print_info "  restore - Re-apply symlinks via install.sh"
             ;;
     esac
 }
