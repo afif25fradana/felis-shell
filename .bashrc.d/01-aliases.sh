@@ -4,16 +4,56 @@
 if [[ -n "$WSL_DISTRO_NAME" ]]; then
     export BASHRC_ENV="wsl"
 
+    # Resolve a Windows executable even when appendWindowsPath=false prunes
+    # the Windows directories from PATH. Override the location with
+    # FELIS_WIN_BIN_DIR if Windows is not installed on /mnt/c.
+    _fs_windows_exe() {
+        local name="$1"
+        local resolved
+        resolved=$(command -v "$name" 2>/dev/null || true)
+        if [[ -n "$resolved" ]]; then
+            printf '%s\n' "$resolved"
+            return 0
+        fi
+
+        local -a candidates=()
+        local dir
+        for dir in \
+            "${FELIS_WIN_BIN_DIR:-}" \
+            "/mnt/c/Windows/System32" \
+            "/mnt/c/Windows" \
+            "/mnt/c/Windows/System32/WindowsPowerShell/v1.0"; do
+            [[ -n "$dir" ]] && candidates+=("$dir/$name")
+        done
+
+        local candidate
+        for candidate in "${candidates[@]}"; do
+            if [[ -x "$candidate" ]]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+
+        return 1
+    }
+
     open() {
         if command -v wslview >/dev/null 2>&1; then
             wslview "$@"
             return
         fi
-        local target="${1:-.}"
+
+        local explorer target
+        if ! explorer=$(_fs_windows_exe explorer.exe); then
+            print_error "explorer.exe not found; set FELIS_WIN_BIN_DIR in user.conf"
+            return 1
+        fi
+
+        target="${1:-.}"
         if [[ "$target" =~ ^[a-zA-Z]+:// ]]; then
-            explorer.exe "$target"
+            "$explorer" "$target"
         else
-            explorer.exe "$(wslpath -w "$target" 2>/dev/null || echo "$target")"
+            "$explorer" "$(wslpath -w "$target" 2>/dev/null || printf '%s' "$target")"
         fi
     }
 
@@ -22,22 +62,34 @@ if [[ -n "$WSL_DISTRO_NAME" ]]; then
             print_warning "Usage: <command> | clip"
             return 1
         fi
-        clip.exe "$@"
+
+        local clip_bin
+        if ! clip_bin=$(_fs_windows_exe clip.exe); then
+            print_error "clip.exe not found; set FELIS_WIN_BIN_DIR in user.conf"
+            return 1
+        fi
+        "$clip_bin" "$@"
     }
 
     paste() {
+        local powershell
         if command -v wsl-paste >/dev/null 2>&1; then
             wsl-paste --no-newline
-        elif command -v powershell.exe >/dev/null 2>&1; then
-            powershell.exe -NoProfile -NonInteractive -Command \
+        elif powershell=$(_fs_windows_exe powershell.exe); then
+            "$powershell" -NoProfile -NonInteractive -Command \
                 '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Clipboard -Raw' 2>/dev/null | tr -d '\r'
+        else
+            print_warning "Clipboard paste requires wsl-paste or powershell.exe"
+            return 1
         fi
     }
 
     if command -v wslview >/dev/null; then
         export BROWSER="${BROWSER:-wslview}"
     else
-        export BROWSER="${BROWSER:-explorer.exe}"
+        _fs_browser=$(_fs_windows_exe explorer.exe || true)
+        export BROWSER="${BROWSER:-${_fs_browser:-explorer.exe}}"
+        unset _fs_browser
     fi
 elif [[ "$XDG_CURRENT_DESKTOP" == "Hyprland" ]]; then
     export BASHRC_ENV="hyprland"

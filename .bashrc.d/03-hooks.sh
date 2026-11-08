@@ -81,6 +81,12 @@ bashrc_run_hooks() {
 # Backward compatibility function for existing CD hooks
 declare -a BASHRC_CD_HOOKS=()
 
+# User-facing note that stays silent in quiet mode (CI, AI agents, pipes)
+_fs_note() {
+    [[ "${FELIS_QUIET:-false}" == "true" ]] && return 0
+    print_info "$@"
+}
+
 # Auto-switch Node version based on .nvmrc
 _fs_auto_switch_node() {
     # Skip on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
@@ -95,7 +101,7 @@ _fs_auto_switch_node() {
         current_version=$(node --version 2>/dev/null || echo "none")
 
         if [[ "v$required_version" != "$current_version" ]]; then
-            print_info "Switching to Node.js version: $required_version"
+            _fs_note "Switching to Node.js version: $required_version"
             nvm use "$required_version" 2>/dev/null || {
                 print_warning "Node.js version $required_version not installed. Installing..."
                 nvm install "$required_version" && nvm use "$required_version"
@@ -110,7 +116,7 @@ _fs_auto_activate_venv() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
         local venv_root="${_FS_VENV_PROJECT_DIR:-$(dirname "$VIRTUAL_ENV")}"
         if [[ ! "$(pwd -P)/" == "$venv_root"/* ]]; then
-            print_info "Leaving virtual environment: $(basename "$VIRTUAL_ENV")"
+            _fs_note "Leaving virtual environment: $(basename "$VIRTUAL_ENV")"
             deactivate 2>/dev/null || unset VIRTUAL_ENV
             unset _FS_VENV_PROJECT_DIR
         fi
@@ -135,7 +141,7 @@ _fs_auto_activate_venv() {
 
     # Activate if found and not already active
     if [[ -n "$venv_found" && -z "$VIRTUAL_ENV" ]]; then
-        print_info "Activating virtual environment: $venv_found"
+        _fs_note "Activating virtual environment: $venv_found"
         _FS_VENV_PROJECT_DIR="$(pwd -P)"
         source "$venv_found/bin/activate"
     fi
@@ -145,7 +151,7 @@ _fs_auto_activate_venv() {
         local poetry_venv
         poetry_venv=$(poetry env info --path 2>/dev/null)
         if [[ -n "$poetry_venv" && -f "$poetry_venv/bin/activate" ]]; then
-            print_info "Activating Poetry environment"
+            _fs_note "Activating Poetry environment"
             _FS_VENV_PROJECT_DIR="$(pwd -P)"
             source "$poetry_venv/bin/activate"
         fi
@@ -156,7 +162,7 @@ _fs_auto_activate_venv() {
         local pipenv_venv
         pipenv_venv=$(pipenv --venv 2>/dev/null)
         if [[ -n "$pipenv_venv" && -f "$pipenv_venv/bin/activate" ]]; then
-            print_info "Activating Pipenv environment"
+            _fs_note "Activating Pipenv environment"
             _FS_VENV_PROJECT_DIR="$(pwd -P)"
             source "$pipenv_venv/bin/activate"
         fi
@@ -167,7 +173,7 @@ _fs_auto_activate_venv() {
         local env_name
         env_name=$(basename "$PWD" | tr . _)
         if conda env list | grep -q "$env_name"; then
-            print_info "Activating Conda environment: $env_name"
+            _fs_note "Activating Conda environment: $env_name"
             conda activate "$env_name"
         fi
     fi
@@ -177,6 +183,11 @@ _fs_auto_activate_venv() {
 
 # Function to show directory contents after cd
 _fs_cd_show_contents() {
+    # Stay silent when output is captured (pipes, CI, AI agents) or quiet mode is on
+    if [[ "${FELIS_QUIET:-false}" == "true" || ! -t 1 ]]; then
+        return 0
+    fi
+
     # Skip auto-preview on Windows mounted drives (/mnt/*) in WSL to prevent 9P filesystem latency
     if [[ "$PWD" == /mnt || "$PWD" == /mnt/* ]]; then
         return 0
@@ -302,9 +313,41 @@ _fs_prompt_hook() {
     push_dir
     build_prompt "$last_exit"
 }
-PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt;/}"
-PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt/}"
-PROMPT_COMMAND="_fs_prompt_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+# Compose prompt hooks without clobbering other tools (starship, bash-preexec).
+# PROMPT_COMMAND arrays require Bash >= 5.1; keep the scalar form on older shells.
+_fs_prompt_uses_array() {
+    (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) ))
+}
+
+_fs_install_prompt_hook() {
+    if _fs_prompt_uses_array; then
+        local -a hooks=()
+        local hook decl
+        decl=$(declare -p PROMPT_COMMAND 2>/dev/null || true)
+
+        if [[ "$decl" == "declare -a"* ]]; then
+            for hook in "${PROMPT_COMMAND[@]}"; do
+                [[ "$hook" == "build_prompt" || "$hook" == "_fs_prompt_hook" ]] && continue
+                hooks+=("$hook")
+            done
+        else
+            local scalar="${PROMPT_COMMAND:-}"
+            # 02-prompt.sh installs build_prompt; _fs_prompt_hook wraps it below.
+            scalar="${scalar#build_prompt;}"
+            scalar="${scalar#build_prompt}"
+            [[ -n "$scalar" ]] && hooks+=("$scalar")
+        fi
+
+        PROMPT_COMMAND=(_fs_prompt_hook "${hooks[@]}")
+    else
+        PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt;/}"
+        PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt/}"
+        PROMPT_COMMAND="_fs_prompt_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+    fi
+}
+
+_fs_install_prompt_hook
+unset -f _fs_install_prompt_hook
 
 # Shell Options
 # Better history handling
@@ -334,6 +377,12 @@ fi
 
 # Startup Commands
 startup_hook() {
+    # Do not clear the screen or print a banner when output is captured
+    # (pipes, CI, AI agents) or quiet mode is on.
+    if [[ "${FELIS_QUIET:-false}" == "true" || ! -t 1 ]]; then
+        return 0
+    fi
+
     # Check if fastfetch is enabled (default: true)
     local fastfetch_enabled=${FASTFETCH_ENABLED:-true}
     

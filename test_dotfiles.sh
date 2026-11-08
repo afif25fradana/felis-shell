@@ -77,6 +77,8 @@ list_tests() {
     echo "  env             Validate environment setup"
     echo "  deps            Check dependencies"
     echo "  integration     Run integration tests"
+    echo "  wsl             Check WSL2 PATH pruning"
+    echo "  prompt          Check prompt exit code and hook composition"
 }
 
 # Function to find all relevant files
@@ -558,6 +560,78 @@ test_integration() {
     fi
 }
 
+# Test 9: WSL2 PATH pruning
+test_wsl() {
+    echo "Test 9: Checking WSL2 PATH pruning..."
+
+    local output
+    output=$(WSL_DISTRO_NAME=archlinux \
+        FELIS_WSL_PATH_MODE=prune \
+        BASHRC_DIR="$PWD/.bashrc.d" \
+        FASTFETCH_ENABLED=false \
+        PATH="/mnt/c/WINDOWS/System32:/mnt/c/WINDOWS:/mnt/d/Program Files/nodejs:/usr/local/bin:/usr/bin:/bin" \
+        bash --norc -i -c 'source .bashrc; printf "%s" "$PATH"' 2>/dev/null)
+
+    if [[ ":$output:" == *":/mnt/c/WINDOWS/System32:"* && ":$output:" == *":/mnt/c/WINDOWS:"* ]]; then
+        print_success "Whitelisted Windows directories preserved"
+    else
+        print_error "Whitelisted Windows directories were pruned: $output"
+        return 1
+    fi
+
+    if [[ ":$output:" == *"/mnt/d/Program Files/nodejs"* ]]; then
+        print_error "Non-whitelisted Windows PATH entry was not pruned: $output"
+        return 1
+    else
+        print_success "Non-whitelisted Windows PATH entry pruned"
+    fi
+
+    output=$(WSL_DISTRO_NAME=archlinux \
+        FELIS_WSL_PATH_MODE=keep \
+        BASHRC_DIR="$PWD/.bashrc.d" \
+        FASTFETCH_ENABLED=false \
+        PATH="/mnt/d/Program Files/nodejs:/usr/local/bin:/usr/bin:/bin" \
+        bash --norc -i -c 'source .bashrc; printf "%s" "$PATH"' 2>/dev/null)
+
+    if [[ ":$output:" == *"/mnt/d/Program Files/nodejs"* ]]; then
+        print_success "FELIS_WSL_PATH_MODE=keep preserves Windows PATH"
+    else
+        print_error "FELIS_WSL_PATH_MODE=keep did not preserve Windows PATH: $output"
+        return 1
+    fi
+
+    return 0
+}
+
+# Test 10: Prompt exit status and PROMPT_COMMAND composition
+test_prompt() {
+    echo "Test 10: Checking prompt exit code and hook composition..."
+
+    local output
+    output=$(BASHRC_DIR="$PWD/.bashrc.d" \
+        FASTFETCH_ENABLED=false \
+        FELIS_QUIET=true \
+        bash --norc -i -c 'source .bashrc; false; _fs_prompt_hook; printf "%s\n" "$PS1"; declare -p PROMPT_COMMAND' 2>/dev/null)
+
+    if [[ "$output" == *"✗ 1"* ]]; then
+        print_success "Prompt preserves non-zero exit code"
+    else
+        print_error "Prompt did not preserve exit code (expected '✗ 1')"
+        return 1
+    fi
+
+    if [[ "$output" == *"declare -a PROMPT_COMMAND"* ]]; then
+        print_success "PROMPT_COMMAND uses the array form"
+    elif (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        print_error "Expected array PROMPT_COMMAND on Bash ${BASH_VERSION}"
+        return 1
+    else
+        print_info "Scalar PROMPT_COMMAND expected on Bash ${BASH_VERSION} (< 5.1)"
+    fi
+
+    return 0
+}
+
 # Run all tests
 run_all_tests() {
     echo "=== Dotfiles Test Script ==="
@@ -585,6 +659,12 @@ run_all_tests() {
     debug_pause
     
     test_integration || ((failed_tests++))
+    debug_pause
+
+    test_wsl || ((failed_tests++))
+    debug_pause
+
+    test_prompt || ((failed_tests++))
     debug_pause
     
     if [[ $failed_tests -eq 0 ]]; then
@@ -624,6 +704,12 @@ run_specific_test() {
             ;;
         integration)
             test_integration
+            ;;
+        wsl)
+            test_wsl
+            ;;
+        prompt)
+            test_prompt
             ;;
         *)
             print_error "Unknown test: $test_name"

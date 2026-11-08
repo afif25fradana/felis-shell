@@ -13,6 +13,8 @@ fi
 export USE_NERD_FONT=${USE_NERD_FONT:-true}
 export FELIS_SHELL_DEBUG=${FELIS_SHELL_DEBUG:-false}
 export FELIS_SHELL_VERBOSE=${FELIS_SHELL_VERBOSE:-false}
+export FELIS_QUIET=${FELIS_QUIET:-false}
+export FELIS_WSL_PATH_MODE=${FELIS_WSL_PATH_MODE:-prune}
 
 # --- [CORE SETUP] ---
 BASHRC_CACHE_DIR="$HOME/.cache/bashrc"
@@ -35,6 +37,58 @@ if [[ -r "$BASHRC_DIR/user.conf" ]]; then
     if ! source "$BASHRC_DIR/user.conf"; then
         echo "Error: Failed to load user configuration" >&2
     fi
+fi
+
+# --- [WSL PATH OPTIMIZATION] ---
+# Windows PATH entries mounted under /mnt/* are served over 9P, which makes
+# every failed command lookup (command -v) dramatically slower. Prune those
+# entries while keeping the few Windows tools Felis Shell integrates with.
+# Set FELIS_WSL_PATH_MODE=keep in user.conf to preserve the original PATH.
+_fs_prune_wsl_path() {
+    [[ -n "${WSL_DISTRO_NAME:-}" ]] || return 0
+    [[ "${FELIS_WSL_PATH_MODE:-prune}" == "prune" ]] || return 0
+
+    local entry lower
+    local -a path_entries=() kept=()
+    local seen=":"
+
+    IFS=':' read -r -a path_entries <<< "${PATH:-}"
+
+    for entry in "${path_entries[@]}"; do
+        [[ -n "$entry" ]] || continue
+
+        # Only touch Windows drive mounts; leave native Linux paths alone.
+        if [[ "$entry" == /mnt/[a-z] || "$entry" == /mnt/[a-z]/* ]]; then
+            lower="${entry,,}"
+            case "$lower" in
+                /mnt/[a-z]/windows | \
+                /mnt/[a-z]/windows/system32 | \
+                /mnt/[a-z]/windows/system32/wbem | \
+                /mnt/[a-z]/windows/system32/windowspowershell/v1.0 | \
+                */microsoft\ vs\ code/bin)
+                    ;;
+                *)
+                    continue
+                    ;;
+            esac
+        fi
+
+        # De-duplicate while preserving order.
+        [[ "$seen" == *":$entry:"* ]] && continue
+        seen+="$entry:"
+        kept+=("$entry")
+    done
+
+    # Never wipe PATH completely if only Windows entries were present.
+    (( ${#kept[@]} > 0 )) || return 0
+
+    local IFS=':'
+    PATH="${kept[*]}"
+    export PATH
+}
+
+if [[ -n "${WSL_DISTRO_NAME:-}" && "${FELIS_WSL_PATH_MODE:-prune}" == "prune" ]]; then
+    _fs_prune_wsl_path
 fi
 
 # Define module loading order

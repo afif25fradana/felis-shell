@@ -85,6 +85,10 @@ swapfile.sys
 .[^/]*.un~
 .[^/]*.tmp
 
+# Per-machine shell overrides (copy from user.conf.example)
+# ~/.bashrc.d is a symlink to .bashrc.d, so this file lives inside the repo.
+.bashrc.d/user.conf
+
 # Local configuration files that shouldn't be shared
 .local/
 .config/gh/
@@ -151,3 +155,6 @@ pip-delete-this-directory.txt
 venv/
 env/
 ENV/
+
+# Local AI agent instructions (kept out of the repo)
+AGENTS.md

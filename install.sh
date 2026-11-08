@@ -340,6 +340,26 @@ install_dotfiles() {
         fi
     done
 
+    # Login shells read ~/.bash_profile (or ~/.profile), not ~/.bashrc.
+    # Verify one of them sources ~/.bashrc so Felis Shell also loads on login.
+    local login_profile="" candidate
+    for candidate in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+        if [[ -f "$candidate" ]]; then
+            login_profile="$candidate"
+            break
+        fi
+    done
+
+    if [[ -z "$login_profile" ]]; then
+        print_warning "No login-shell profile found (e.g. ~/.bash_profile)."
+        print_info "If Felis Shell does not load on login, create ~/.bash_profile with:"
+        echo -e "    [[ -f ~/.bashrc ]] && . ~/.bashrc"
+    elif ! grep -qs 'bashrc' "$login_profile"; then
+        print_warning "$login_profile does not appear to source ~/.bashrc."
+        print_info "Add this line to load Felis Shell in login shells:"
+        echo -e "    [[ -f ~/.bashrc ]] && . ~/.bashrc"
+    fi
+
     # Preserve and verify host Git identity
     local git_user git_email
     git_user=$(git config --global user.name 2>/dev/null || true)

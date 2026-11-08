@@ -29,7 +29,7 @@ Felis Shell loads configuration modules from `~/.bashrc.d` via `~/.bashrc` in a 
 
 - **Arch Linux / Manjaro**: Native package support via `pacman` (`github-cli`, `7zip`, `chafa`, `fastfetch`).
 - **Ubuntu / Debian**: Native package support via `apt` (`chafa`, `fastfetch`, `batcat`, `fdfind`).
-- **WSL2 (Windows Subsystem for Linux)**: Automatically detected (`WSL_DISTRO_NAME`). Configures Windows Explorer browser dispatch (`wslview` / `explorer.exe`), bypasses slow 9P filesystem hooks on `/mnt/*`, and selects Chafa character rendering for Windows Terminal.
+- **WSL2 (Windows Subsystem for Linux)**: Automatically detected (`WSL_DISTRO_NAME`). Prunes slow Windows `/mnt/*` PATH entries while keeping Explorer, clipboard, PowerShell, and the VS Code CLI; configures Windows Explorer browser dispatch (`wslview` / `explorer.exe`); bypasses slow 9P filesystem hooks on `/mnt/*`; and selects Chafa character rendering for Windows Terminal.
 - **Native Linux Desktops**: Detects Kitty terminal emulator for GPU-accelerated graphic banners.
 
 ---
@@ -65,7 +65,7 @@ Reload your shell environment:
 source ~/.bashrc
 ```
 
-*Note: Existing configuration files (`~/.bashrc`, `~/.inputrc`, etc.) are backed up with timestamps (`~/.bashrc.backup.YYYYMMDD_HHMMSS`) before symlinks are created. Host Git configuration is preserved untouched (see `.gitconfig.example` for reference settings).*
+*Note: Existing configuration files (`~/.bashrc`, `~/.inputrc`, etc.) are backed up with timestamps (`~/.bashrc.backup.YYYYMMDD_HHMMSS`) before symlinks are created. Host Git configuration is preserved untouched (see `.gitconfig.example` for reference settings). `~/.bashrc.d/user.conf` is gitignored, so machine-specific settings are never committed.*
 
 ---
 
@@ -87,6 +87,16 @@ export FELIS_LOGO_WIDTH=50
 
 # Toggle Nerd Font prompt iconography (true/false)
 export USE_NERD_FONT=true
+
+# Suppress the login banner, automatic cd previews, and hook chatter
+# (recommended for CI, scripts, and AI agents; non-TTY output is auto-detected)
+export FELIS_QUIET=false
+
+# WSL2 only: prune slow /mnt/* Windows PATH entries ("keep" to disable)
+export FELIS_WSL_PATH_MODE=prune
+
+# WSL2 only: override the Windows binaries location (default /mnt/c/Windows/System32)
+# export FELIS_WIN_BIN_DIR="/mnt/c/Windows/System32"
 
 # Default Python virtual environment directory name
 export DEFAULT_VENV_NAME=".venv"

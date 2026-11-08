@@ -5,6 +5,9 @@
 #
 # Copy this file to ~/.bashrc.d/user.conf and modify as needed:
 # cp ~/.bashrc.d/user.conf.example ~/.bashrc.d/user.conf
+#
+# ~/.bashrc.d/user.conf is ignored by git, so your machine-specific settings
+# are never committed by "dotfiles backup".
 
 # --- [N8N Configuration] ---
 # Directory where n8n docker files are located
@@ -38,3 +41,19 @@ export USE_NERD_FONT=true
 # Enable git status checks on WSL2 /mnt/* Windows drives
 # Set to true to display git branch in Windows NTFS mounts (may introduce 9P latency)
 export FELIS_PROMPT_GIT_MNT=false
+
+# --- [Quiet Mode] ---
+# Suppress the login banner, automatic "cd" previews, and hook chatter.
+# Useful for CI, scripts, and AI agents. Output capture (non-TTY) is also
+# detected automatically, so this is mainly for interactive PTY sessions.
+export FELIS_QUIET=false
+
+# --- [WSL2 PATH Optimization] ---
+# "prune" (default) removes slow /mnt/* Windows PATH entries while keeping
+# Explorer, clipboard, PowerShell, and the VS Code CLI. Set to "keep" to
+# preserve the full Windows PATH.
+export FELIS_WSL_PATH_MODE=prune
+
+# Base directory for Windows executables when appendWindowsPath=false.
+# Only needed if Windows is not installed on the C: drive.
+# export FELIS_WIN_BIN_DIR="/mnt/c/Windows/System32"

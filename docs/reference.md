@@ -112,6 +112,26 @@ If you clone the repository using Windows Git, ensure Git line ending normalizat
 ### Filesystem Performance in WSL2
 Always clone and keep your development repositories in the native Linux ext4 filesystem (e.g. `~/projects` or `~/felis-shell`). Accessing Windows drives mounted at `/mnt/c/` or `/mnt/d/` uses the 9P/virtiofs protocol, which is slower for multi-file operations and git queries.
 
+### Slow Shell Startup in WSL2
+By default WSL appends every Windows `PATH` entry (often 30+ directories under `/mnt/*`). Because `command -v` checks every directory, each missing CLI tool makes startup slower. Felis Shell prunes non-essential Windows entries and keeps only Explorer, clipboard, PowerShell, and the VS Code CLI. Control it in `~/.bashrc.d/user.conf`:
+```bash
+export FELIS_WSL_PATH_MODE=prune   # or "keep" for the original Windows PATH
+export FELIS_WIN_BIN_DIR="/mnt/c/Windows/System32"  # only if Windows is not on C:
+```
+
+### Quiet Mode for Automation and AI Agents
+Captured output (pipes, CI, agents) is detected automatically via `[[ -t 1 ]]`, so the login banner and automatic `cd` previews are skipped. For interactive PTY sessions, set:
+```bash
+export FELIS_QUIET=true
+```
+This also silences virtualenv/Node hook messages. Errors and warnings are still printed.
+
+### Login Shells
+Bash login shells read `~/.bash_profile`, `~/.bash_login`, or `~/.profile` instead of `~/.bashrc`. The installer warns if none of them sources `~/.bashrc`; add this line if needed:
+```bash
+[[ -f ~/.bashrc ]] && . ~/.bashrc
+```
+
 ### Missing Icons in Prompt
 If prompt iconography (such as Git branch ` ` or language symbols) appears as empty boxes or broken glyphs, ensure you have a **Nerd Font** installed on your host system (e.g., JetBrainsMono Nerd Font) and configured in Windows Terminal settings:
 `Settings -> Profiles -> Defaults -> Appearance -> Font face`.

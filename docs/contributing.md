@@ -24,7 +24,12 @@ Thank you for your interest in contributing to Felis Shell! Whether you are fixi
 4. **Verify Locally**:
    Run the test harness before committing:
    ```bash
-   ./test_dotfiles.sh
+   ./test_dotfiles.sh -v -w
+   ```
+   WSL and prompt behavior have dedicated tests:
+   ```bash
+   ./test_dotfiles.sh --run-test wsl
+   ./test_dotfiles.sh --run-test prompt
    ```
 
 5. **Commit & Push**:
@@ -51,6 +56,8 @@ Thank you for your interest in contributing to Felis Shell! Whether you are fixi
   * Use local variables (`local var_name`) inside all functions.
   * Prefix internal variables to avoid clobbering Bash reserved variables (e.g. `_FS_DIRSTACK`).
 * **Cross-Platform Awareness**: Test or guard commands that behave differently between Linux native, WSL2, and different distributions (Arch vs Debian).
+* **Automation-Friendly Output**: Anything that prints during startup or `cd` must honor `FELIS_QUIET` and skip when stdout is not a TTY (`[[ -t 1 ]]`).
+* **Bash Compatibility**: Keep the Bash 4.0 floor. `PROMPT_COMMAND` arrays require Bash >= 5.1, so changes must keep the scalar fallback.
 
 ---
 
