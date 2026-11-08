@@ -340,8 +340,13 @@ _fs_install_prompt_hook() {
 
         PROMPT_COMMAND=(_fs_prompt_hook "${hooks[@]}")
     else
+        # PROMPT_COMMAND is only an array on Bash >= 5.1; this branch targets
+        # older shells where it is a scalar. The type changes are intentional.
+        # shellcheck disable=SC2178
         PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt;/}"
+        # shellcheck disable=SC2178
         PROMPT_COMMAND="${PROMPT_COMMAND/#build_prompt/}"
+        # shellcheck disable=SC2178,SC2128
         PROMPT_COMMAND="_fs_prompt_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
     fi
 }
